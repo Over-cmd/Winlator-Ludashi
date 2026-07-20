@@ -26,12 +26,10 @@ jobs:
         run: |
           ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529" "cmake;3.22.1"
 
-      - name: 5. Instalar Herramientas de Compilacion de Mesa para Linux
+      - name: 5. Instalar Herramientas de Extraccion del Sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y meson ninja-build python3-pip python3-setuptools \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl python3-mako unzip
-          pip3 install mako ply
+          sudo apt-get install -y zstd tar pixz bison flex imagemagick glslang-tools curl unzip
 
       - name: 6. Configurar Gradle Core 8.10.2 Requerido
         uses: gradle/actions/setup-gradle@v3
@@ -39,74 +37,57 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Descargar y Compilar Mesa Driver Oficial con Parche para Mali-G52
+      - name: 7. Extraer y Modificar el wrapper.tzst Original de Steven-mxz
         run: |
-          # SOLUCCIÓN BLINDADA: Descargamos desde la fuente oficial de Mesa 3D libre de caídas
-          mkdir -p /tmp/mesa_src
-          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
+          mkdir -p /tmp/steven_download
+          # Descargamos el APK original de Steven que sabemos que funciona perfecto
+          curl -sLo /tmp/steven_download/base.apk "https://github.com" || true
           
-          # ARCHIVO DE CONFIGURACIÓN CRUZADA PARA ANDROID ARM64
-          cat << 'EOF' > /tmp/cross_android.txt
-          [binaries]
-          c = 'aarch64-linux-gnu-gcc'
-          cpp = 'aarch64-linux-gnu-g++'
-          ar = 'aarch64-linux-gnu-ar'
-          strip = 'aarch64-linux-gnu-strip'
-          pkgconfig = 'pkg-config'
-          [host_machine]
-          system = 'linux'
-          cpu_family = 'aarch64'
-          cpu = 'armv8-a'
-          endian = 'little'
-          EOF
+          # Extraemos el wrapper.tzst que contiene la Mesa original del autor
+          cd /tmp/steven_download
+          unzip -p base.apk "assets/wrapper.tzst" > /tmp/wrapper_original.tzst || true
+          cd -
           
-          cd /tmp/mesa_src
-          # Configurar Mesa aislando exclusivamente Zink (OpenGL sobre Vulkan) optimizado para tu Unisoc T618
-          meson setup build --cross-file /tmp/cross_android.txt -Dplatforms=android -Dplatform-sdk-version=26 -Dgallium-drivers=zink -Dvulkan-drivers=[] -Dbuildtype=release -Dstrip=true
-          ninja -C build
+          # Desempaquetamos el wrapper original para limpiar los archivos ICD de Qualcomm
+          mkdir -p /tmp/mali_clean
+          tar -I zstd -xf /tmp/wrapper_original.tzst -C /tmp/mali_clean || true
           
-          mkdir -p /tmp/mali_wrapper/lib64
-          mkdir -p /tmp/mali_wrapper/etc/vulkan/icd.d
+          # Buscamos las carpetas icd.d internas y las purificamos apuntando a libvulkan_wrapper.so
+          find /tmp/mali_clean -type d -name "icd.d" | while read -r icd_dir; do
+            rm -rf "$icd_dir"/*
+            echo '{"ICD": {"api_version": "1.1.0", "library_path": "libvulkan_wrapper.so"}}' > "$icd_dir"/wrapper_icd_aarch64.json
+          done
           
-          # Extraemos el binario legítimo recién cocinado y lo inyectamos con la firma del emulador
-          REAL_SO=$(find build/ -name "libgallium_dri.so" -o -name "libvulkan_freedreno.so" -o -name "*dri.so" | head -n 1)
-          if [ ! -z "$REAL_SO" ] && [ -f "$REAL_SO" ]; then
-            cp -f "$REAL_SO" /tmp/mali_wrapper/lib64/libvulkan_wrapper.so
-          else
-            cp -f src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
-          fi
-          
-          # Seteamos el manifiesto ICD apuntando exactamente al wrapper para que el emulador lo levante de fábrica
-          cat << 'EOF' > /tmp/mali_wrapper/etc/vulkan/icd.d/wrapper_icd_aarch64.json
-          {
-            "ICD": {
-              "api_version": "1.1.0",
-              "library_path": "libvulkan_wrapper.so"
-            }
-          }
-          EOF
-          
-          cd /tmp/mali_wrapper
-          tar -cf - . | zstd -19 > /tmp/wrapper.tzst
+          # Volvemos a empaquetar el contenedor con la Mesa legítima de Steven ya purificada
+          mkdir -p /tmp/final_output
+          cd /tmp/mali_clean
+          tar -cf - . | zstd -19 > /tmp/final_output/wrapper.tzst
           cd -
 
-      - name: 8. Saneamiento de Recursos de Tu Fork e Inyeccion Forzada del Mod Gráfico
+      - name: 8. Saneamiento de Recursos e Inyeccion Forzada de la Mesa Original
         run: |
           rm -rf .gradle app/.cxx app/build local.properties gradle.properties
+          git checkout HEAD -- "app/src/main/cpp/" || true
+          git checkout HEAD -- "app/src/main/java/" || true
           
           shopt -s globstar nullglob
           for img in app/src/main/res/drawable*/ab_*.png app/src/main/res/drawable*/**/wallpaper.png app/src/main/res/drawable*/wallpaper.png; do
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
           done
           
-          # Colocamos el nuevo wrapper.tzst directamente en assets borrando cualquier residuo viejo
+          # Inyectamos el wrapper.tzst con la Mesa original limpia en la carpeta assets de tu fork
           mkdir -p app/src/main/assets/
           rm -f app/src/main/assets/wrapper.tzst*
-          cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
+          cp -f /tmp/final_output/wrapper.tzst app/src/main/assets/wrapper.tzst
+          
+          # Forzamos la descarga del binario libvulkan_wrapper.so original por duplicado (32 y 64 bits)
+          mkdir -p app/src/main/jniLibs/arm64-v8a
+          mkdir -p app/src/main/jniLibs/armeabi-v7a
+          curl -sLo "app/src/main/jniLibs/arm64-v8a/libvulkan_wrapper.so" "https://github.com" || true
+          curl -sLo "app/src/main/jniLibs/armeabi-v7a/libvulkan_wrapper.so" "https://github.com" || true
           
           VULKAN_C_PATH=$(find app/src/main/cpp -iname "vulkan.c" | head -n 1)
           if [ ! -z "$VULKAN_C_PATH" ] && [ -f "$VULKAN_C_PATH" ]; then
-             echo "Restaurando mapeo de extensiones nativas en tu repositorio..."
              git checkout HEAD -- "$VULKAN_C_PATH" || true
           fi
           
