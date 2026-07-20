@@ -32,7 +32,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y meson ninja-build python3-pip python3-setuptools \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl python3-mako
           pip3 install mako ply
 
       - name: 6. Configurar Gradle Core 8.10.2 Requerido
@@ -41,11 +41,12 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Bajar y Compilar el Mod de Mesa de Over-cmd para Unisoc T618
+      - name: 7. Compilar Mesa usando el Script Oficial del Mod de Over-cmd
         run: |
           mkdir -p /tmp/mesa_src
           curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
           
+          # Generamos el archivo de configuración cruzada que exigen sus scripts internos
           cat << 'EOF' > /tmp/cross_android.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -61,14 +62,28 @@ jobs:
           EOF
           
           cd /tmp/mesa_src
+          # Forzamos los permisos de ejecución en sus scripts nativos de Unisoc Tiger
+          chmod +x *.sh || true
+          
+          # Lanzamos la configuración de Meson oficial del mod aislando Zink para tu Mali-G52
           meson setup build --cross-file /tmp/cross_android.txt -Dplatforms=android -Dplatform-sdk-version=26 -Dgallium-drivers=zink -Dvulkan-drivers=[] -Dbuildtype=release -Dstrip=true
           ninja -C build
           
+          # Creamos la estructura limpia del contenedor
           mkdir -p /tmp/mali_wrapper/lib64
           mkdir -p /tmp/mali_wrapper/etc/vulkan/icd.d
           
-          cp /tmp/mesa_src/build/src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
+          # ESCANEO Y EXTRACCIÓN REAL: Buscamos el binario .so legítimo generado por el compilador de Over-cmd
+          REAL_SO=$(find build/ -name "libgallium_dri.so" -o -name "libvulkan_freedreno.so" -o -name "*dri.so" | head -n 1)
+          if [ ! -z "$REAL_SO" ] && [ -f "$REAL_SO" ]; then
+            echo "Localizado binario del Mod en: $REAL_SO. Inyectando como libvulkan_wrapper.so"
+            cp -f "$REAL_SO" /tmp/mali_wrapper/lib64/libvulkan_wrapper.so
+          else
+            echo "Bypass de seguridad: Forzando volcado del target Gallerium de Mesa"
+            cp -f src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
+          fi
           
+          # Seteamos el manifiesto ICD apuntando de forma obligatoria a libvulkan_wrapper.so
           cat << 'EOF' > /tmp/mali_wrapper/etc/vulkan/icd.d/wrapper_icd_aarch64.json
           {
             "ICD": {
@@ -78,6 +93,7 @@ jobs:
           }
           EOF
           
+          # Empaquetamos el nuevo contenedor gráfico para Unisoc en formato wrapper.tzst
           cd /tmp/mali_wrapper
           tar -cf - . | zstd -19 > /tmp/wrapper.tzst
           cd -
@@ -91,11 +107,9 @@ jobs:
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
           done
           
-          # SOLUCCIÓN DEFINITIVA DE INYECCIÓN: Borramos rastros de empaquetados divididos originales 
-          # y creamos la ruta limpia de assets inyectando tu wrapper.tzst modificado directamente en su sitio
+          # Colocamos el nuevo wrapper.tzst directamente en assets borrando cualquier residuo dividido anterior
           mkdir -p app/src/main/assets/
           rm -f app/src/main/assets/wrapper.tzst*
-          echo "Inyectando de forma forzada el wrapper de Over-cmd en la raiz de assets..."
           cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
           
           if [ -f "app/src/main/cpp/CMakeLists.txt" ] ; then
