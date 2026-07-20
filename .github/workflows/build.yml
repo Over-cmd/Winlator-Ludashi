@@ -30,7 +30,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y meson ninja-build python3-pip python3-setuptools \
-            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl python3-mako
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl python3-mako unzip
           pip3 install mako ply
 
       - name: 6. Configurar Gradle Core 8.10.2 Requerido
@@ -39,10 +39,19 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Compilar Mesa usando el Script Oficial del Mod de Over-cmd
+      - name: 7. Descargar y Compilar el Mod de Mesa de Over-cmd para Unisoc T618
         run: |
           mkdir -p /tmp/mesa_src
-          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
+          # CORRECCIÓN CRÍTICA DE DESCARGA: Apuntamos a la rama estable 'main' del repositorio de Over-cmd de forma segura
+          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src || true
+          
+          # Verificación de respaldo si el tarball fallara por límites de cuota de red
+          if [ ! -f "/tmp/mesa_src/meson.build" ]; then
+            echo "Descargando vía zip alternativo de respaldo..."
+            curl -sLo /tmp/mesa.zip "https://github.com"
+            unzip -q /tmp/mesa.zip -d /tmp/mesa_extracted
+            cp -rf /tmp/mesa_extracted/Mesa_wrapper_malig52_vulkan_1.1_mods-main/* /tmp/mesa_src/ || true
+          fi
           
           cat << 'EOF' > /tmp/cross_android.txt
           [binaries]
@@ -102,7 +111,6 @@ jobs:
           rm -f app/src/main/assets/wrapper.tzst*
           cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
           
-          # PARCHE COMPILADOR: Forzamos la restauración del archivo de extensiones gráfico original en tu propio árbol de código
           VULKAN_C_PATH=$(find app/src/main/cpp -iname "vulkan.c" | head -n 1)
           if [ ! -z "$VULKAN_C_PATH" ] && [ -f "$VULKAN_C_PATH" ]; then
              echo "Restaurando mapeo de extensiones nativas en tu repositorio..."
