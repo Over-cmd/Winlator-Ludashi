@@ -6,11 +6,9 @@ jobs:
   compilar-apk-unisoc:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Descargar Codigo Fuente Puro y Virgen del Repositorio de Steven-mxz
+      - name: 1. Descargar Codigo Fuente Completo de Mi Propio Fork
         uses: actions/checkout@v4
         with:
-          repository: 'Steven-mxz/Winlator-Ludashi'
-          ref: 'main'
           path: '.'
           fetch-depth: 0
           submodules: recursive
@@ -39,11 +37,11 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Saneamiento Quirurgico de Recursos e Imagenes Corruptas de Steven
+      - name: 7. Saneamiento Quirurgico de Recursos e Imagenes Corruptas
         run: |
           rm -rf .gradle app/.cxx app/build local.properties gradle.properties
           
-          # Sustituimos elementos gráficos ab_ y fondos corruptos del mod original que bloquean el AAPT2 de Android
+          # Sustituyes elementos gráficos ab_ y fondos corruptos del mod original que bloquean el AAPT2 de Android
           shopt -s globstar nullglob
           for img in app/src/main/res/drawable*/ab_*.png app/src/main/res/drawable*/**/wallpaper.png app/src/main/res/drawable*/wallpaper.png; do
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
@@ -51,10 +49,10 @@ jobs:
 
       - name: 8. Aislamiento de Estándares de Lenguaje en CMake y Purga de Perfiles ICD Falsos
         run: |
-          # Localizamos el wrapper original de Steven y purificamos sus carpetas icd.d internas de forma 100% local
+          # Localizamos el wrapper original en tu propio fork y purificamos sus carpetas icd.d internas
           ORIGINAL_TZST=$(find app/src/main/assets -name "wrapper.tzst" | head -n 1)
           if [ ! -z "$ORIGINAL_TZST" ] && [ -f "$ORIGINAL_TZST" ]; then
-            echo "Purificando de forma local el contenedor gráfico de Steven..."
+            echo "Purificando de forma local el contenedor gráfico de tu repositorio..."
             mkdir -p /tmp/local_clean
             tar -I zstd -xf "$ORIGINAL_TZST" -C /tmp/local_clean || true
             
@@ -102,18 +100,17 @@ jobs:
           echo "org.gradle.project.android.compiler.cmake.cppflags=-w -Wno-error" >> gradle.properties
           echo "android.packaging.doNotStrip=**/*.so" >> gradle.properties
           
-          # Forzamos la compilación dual idéntica al máster para no perder el puente gráfico de 32 bits de DXVK
+          # Forzamos la compilación dual para no perder el puente de 32 bits que exigen tus juegos antiguos
           echo "org.gradle.project.android.compiler.cmake.arguments=-DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a,armeabi-v7a" >> gradle.properties
           
           if [ -f "app/build.gradle" ] ; then sed -i 's/ndkVersion.*/ndkVersion = "21.4.7075529"/g' app/build.gradle; fi
           find app/src/main/ -type f -name "*prof*" -exec rm -f {} \; || true
           export _JAVA_OPTIONS="-Xmx6g -Xms2g"
           
-          # Compilación limpia usando el repositorio de Steven-mxz
+          # Compilación multi-arquitectura usando tu fork limpio
           gradle clean --no-build-cache --no-daemon
           gradle assembleRelease -Pandroid.ndkDirectory="${ANDROID_SDK_ROOT}/ndk/21.4.7075529" -x lint -x lintVitalRelease -x test --no-build-cache --no-daemon
 
-          # Certificado de firmado digital
           keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           
           # Firma digital v2 y v3 completa obligatoria para desbloquear los permisos Vulkan de la GPU Mali
