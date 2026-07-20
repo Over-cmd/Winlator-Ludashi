@@ -6,9 +6,11 @@ jobs:
   compilar-apk-unisoc:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Descargar Codigo Fuente Completo de Mi Propio Fork
+      - name: 1. Descargar Codigo Fuente Puro y Virgen del Repositorio de Steven-mxz
         uses: actions/checkout@v4
         with:
+          repository: 'Steven-mxz/Winlator-Ludashi'
+          ref: 'main'
           path: '.'
           fetch-depth: 0
           submodules: recursive
@@ -26,10 +28,10 @@ jobs:
         run: |
           ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529" "cmake;3.22.1"
 
-      - name: 5. Instalar Herramientas de Extraccion del Sistema
+      - name: 5. Instalar Herramientas de Compilacion del Sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y zstd tar pixz bison flex imagemagick glslang-tools curl unzip
+          sudo apt-get install -y zstd tar pixz bison flex imagemagick glslang-tools curl
 
       - name: 6. Configurar Gradle Core 8.10.2 Requerido
         uses: gradle/actions/setup-gradle@v3
@@ -37,60 +39,35 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Extraer y Modificar el wrapper.tzst Original de Steven-mxz
-        run: |
-          mkdir -p /tmp/steven_download
-          # Descargamos el APK original de Steven que sabemos que funciona perfecto
-          curl -sLo /tmp/steven_download/base.apk "https://github.com" || true
-          
-          # Extraemos el wrapper.tzst que contiene la Mesa original del autor
-          cd /tmp/steven_download
-          unzip -p base.apk "assets/wrapper.tzst" > /tmp/wrapper_original.tzst || true
-          cd -
-          
-          # Desempaquetamos el wrapper original para limpiar los archivos ICD de Qualcomm
-          mkdir -p /tmp/mali_clean
-          tar -I zstd -xf /tmp/wrapper_original.tzst -C /tmp/mali_clean || true
-          
-          # Buscamos las carpetas icd.d internas y las purificamos apuntando a libvulkan_wrapper.so
-          find /tmp/mali_clean -type d -name "icd.d" | while read -r icd_dir; do
-            rm -rf "$icd_dir"/*
-            echo '{"ICD": {"api_version": "1.1.0", "library_path": "libvulkan_wrapper.so"}}' > "$icd_dir"/wrapper_icd_aarch64.json
-          done
-          
-          # Volvemos a empaquetar el contenedor con la Mesa legítima de Steven ya purificada
-          mkdir -p /tmp/final_output
-          cd /tmp/mali_clean
-          tar -cf - . | zstd -19 > /tmp/final_output/wrapper.tzst
-          cd -
-
-      - name: 8. Saneamiento de Recursos e Inyeccion Forzada de la Mesa Original
+      - name: 7. Saneamiento Quirurgico de Recursos e Imagenes Corruptas de Steven
         run: |
           rm -rf .gradle app/.cxx app/build local.properties gradle.properties
-          git checkout HEAD -- "app/src/main/cpp/" || true
-          git checkout HEAD -- "app/src/main/java/" || true
           
+          # Sustituimos elementos gráficos ab_ y fondos corruptos del mod original que bloquean el AAPT2 de Android
           shopt -s globstar nullglob
           for img in app/src/main/res/drawable*/ab_*.png app/src/main/res/drawable*/**/wallpaper.png app/src/main/res/drawable*/wallpaper.png; do
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
           done
-          
-          # Inyectamos el wrapper.tzst con la Mesa original limpia en la carpeta assets de tu fork
-          mkdir -p app/src/main/assets/
-          rm -f app/src/main/assets/wrapper.tzst*
-          cp -f /tmp/final_output/wrapper.tzst app/src/main/assets/wrapper.tzst
-          
-          # Forzamos la descarga del binario libvulkan_wrapper.so original por duplicado (32 y 64 bits)
-          mkdir -p app/src/main/jniLibs/arm64-v8a
-          mkdir -p app/src/main/jniLibs/armeabi-v7a
-          curl -sLo "app/src/main/jniLibs/arm64-v8a/libvulkan_wrapper.so" "https://github.com" || true
-          curl -sLo "app/src/main/jniLibs/armeabi-v7a/libvulkan_wrapper.so" "https://github.com" || true
-          
-          VULKAN_C_PATH=$(find app/src/main/cpp -iname "vulkan.c" | head -n 1)
-          if [ ! -z "$VULKAN_C_PATH" ] && [ -f "$VULKAN_C_PATH" ]; then
-             git checkout HEAD -- "$VULKAN_C_PATH" || true
+
+      - name: 8. Aislamiento de Estándares de Lenguaje en CMake y Purga de Perfiles ICD Falsos
+        run: |
+          # Localizamos el wrapper original de Steven y purificamos sus carpetas icd.d internas de forma 100% local
+          ORIGINAL_TZST=$(find app/src/main/assets -name "wrapper.tzst" | head -n 1)
+          if [ ! -z "$ORIGINAL_TZST" ] && [ -f "$ORIGINAL_TZST" ]; then
+            echo "Purificando de forma local el contenedor gráfico de Steven..."
+            mkdir -p /tmp/local_clean
+            tar -I zstd -xf "$ORIGINAL_TZST" -C /tmp/local_clean || true
+            
+            find /tmp/local_clean -type d -name "icd.d" | while read -r icd_dir; do
+              rm -rf "$icd_dir"/*
+              echo '{"ICD": {"api_version": "1.1.0", "library_path": "libvulkan_wrapper.so"}}' > "$icd_dir"/wrapper_icd_aarch64.json
+            done
+            
+            rm -f "$ORIGINAL_TZST"
+            tar -C /tmp/local_clean -cf - . | zstd -19 > "$ORIGINAL_TZST"
           fi
-          
+
+          # Evitamos que Clang mezcle banderas de lenguaje C y C++17 al procesar vulkan.c
           if [ -f "app/src/main/cpp/CMakeLists.txt" ] ; then
             echo "set(CMAKE_C_STANDARD 11)" > /tmp/cmake_new.txt
             echo "set(CMAKE_C_STANDARD_REQUIRED ON)" >> /tmp/cmake_new.txt
@@ -124,21 +101,26 @@ jobs:
           echo "org.gradle.project.android.compiler.cmake.cflags=-w -Wno-error" >> gradle.properties
           echo "org.gradle.project.android.compiler.cmake.cppflags=-w -Wno-error" >> gradle.properties
           echo "android.packaging.doNotStrip=**/*.so" >> gradle.properties
+          
+          # Forzamos la compilación dual idéntica al máster para no perder el puente gráfico de 32 bits de DXVK
           echo "org.gradle.project.android.compiler.cmake.arguments=-DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a,armeabi-v7a" >> gradle.properties
           
           if [ -f "app/build.gradle" ] ; then sed -i 's/ndkVersion.*/ndkVersion = "21.4.7075529"/g' app/build.gradle; fi
           find app/src/main/ -type f -name "*prof*" -exec rm -f {} \; || true
           export _JAVA_OPTIONS="-Xmx6g -Xms2g"
           
+          # Compilación limpia usando el repositorio de Steven-mxz
           gradle clean --no-build-cache --no-daemon
           gradle assembleRelease -Pandroid.ndkDirectory="${ANDROID_SDK_ROOT}/ndk/21.4.7075529" -x lint -x lintVitalRelease -x test --no-build-cache --no-daemon
 
+          # Certificado de firmado digital
           keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
           
+          # Firma digital v2 y v3 completa obligatoria para desbloquear los permisos Vulkan de la GPU Mali
           B_DIR=$(ls -d ${ANDROID_SDK_ROOT}/build-tools/* | tail -1)
           ${B_DIR}/apksigner sign --ks /tmp/debug.keystore --ks-pass pass:android --key-pass pass:android --v2-signing-enabled true --v3-signing-enabled true --out app/build/outputs/apk/release/Winlator_Ludashi_Fork.apk app/build/outputs/apk/release/app-release-unsigned.apk
 
-      - name: 10. Subir APK Firmado con Driver Incorporado a GitHub Artifacts
+      - name: 10. Subir APK Firmado a GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-MiFork-Unisoc
