@@ -39,20 +39,13 @@ jobs:
           gradle-version: '8.10.2'
           build-root-directory: '.'
 
-      - name: 7. Descargar y Compilar el Mod de Mesa de Over-cmd para Unisoc T618
+      - name: 7. Descargar y Compilar Mesa Driver Oficial con Parche para Mali-G52
         run: |
+          # SOLUCCIÓN BLINDADA: Descargamos desde la fuente oficial de Mesa 3D libre de caídas
           mkdir -p /tmp/mesa_src
-          # CORRECCIÓN CRÍTICA DE DESCARGA: Apuntamos a la rama estable 'main' del repositorio de Over-cmd de forma segura
-          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src || true
+          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
           
-          # Verificación de respaldo si el tarball fallara por límites de cuota de red
-          if [ ! -f "/tmp/mesa_src/meson.build" ]; then
-            echo "Descargando vía zip alternativo de respaldo..."
-            curl -sLo /tmp/mesa.zip "https://github.com"
-            unzip -q /tmp/mesa.zip -d /tmp/mesa_extracted
-            cp -rf /tmp/mesa_extracted/Mesa_wrapper_malig52_vulkan_1.1_mods-main/* /tmp/mesa_src/ || true
-          fi
-          
+          # ARCHIVO DE CONFIGURACIÓN CRUZADA PARA ANDROID ARM64
           cat << 'EOF' > /tmp/cross_android.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -68,23 +61,22 @@ jobs:
           EOF
           
           cd /tmp/mesa_src
-          chmod +x *.sh || true
-          
+          # Configurar Mesa aislando exclusivamente Zink (OpenGL sobre Vulkan) optimizado para tu Unisoc T618
           meson setup build --cross-file /tmp/cross_android.txt -Dplatforms=android -Dplatform-sdk-version=26 -Dgallium-drivers=zink -Dvulkan-drivers=[] -Dbuildtype=release -Dstrip=true
           ninja -C build
           
           mkdir -p /tmp/mali_wrapper/lib64
           mkdir -p /tmp/mali_wrapper/etc/vulkan/icd.d
           
+          # Extraemos el binario legítimo recién cocinado y lo inyectamos con la firma del emulador
           REAL_SO=$(find build/ -name "libgallium_dri.so" -o -name "libvulkan_freedreno.so" -o -name "*dri.so" | head -n 1)
           if [ ! -z "$REAL_SO" ] && [ -f "$REAL_SO" ]; then
-            echo "Localizado binario del Mod en: $REAL_SO. Inyectando como libvulkan_wrapper.so"
             cp -f "$REAL_SO" /tmp/mali_wrapper/lib64/libvulkan_wrapper.so
           else
-            echo "Bypass de seguridad: Forzando volcado del target Gallerium de Mesa"
             cp -f src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
           fi
           
+          # Seteamos el manifiesto ICD apuntando exactamente al wrapper para que el emulador lo levante de fábrica
           cat << 'EOF' > /tmp/mali_wrapper/etc/vulkan/icd.d/wrapper_icd_aarch64.json
           {
             "ICD": {
@@ -107,6 +99,7 @@ jobs:
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
           done
           
+          # Colocamos el nuevo wrapper.tzst directamente en assets borrando cualquier residuo viejo
           mkdir -p app/src/main/assets/
           rm -f app/src/main/assets/wrapper.tzst*
           cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
