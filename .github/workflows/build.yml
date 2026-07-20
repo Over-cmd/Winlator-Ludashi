@@ -6,11 +6,9 @@ jobs:
   compilar-apk-unisoc:
     runs-on: ubuntu-latest
     steps:
-      - name: 1. Descargar Codigo Fuente Puro y Virgen de Steven-mxz
+      - name: 1. Descargar Codigo Fuente Completo de Mi Propio Fork
         uses: actions/checkout@v4
         with:
-          repository: 'Steven-mxz/Winlator-Ludashi'
-          ref: 'main'
           path: '.'
           fetch-depth: 0
           submodules: recursive
@@ -46,7 +44,6 @@ jobs:
           mkdir -p /tmp/mesa_src
           curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
           
-          # Generamos el archivo de configuración cruzada que exigen sus scripts internos
           cat << 'EOF' > /tmp/cross_android.txt
           [binaries]
           c = 'aarch64-linux-gnu-gcc'
@@ -62,18 +59,14 @@ jobs:
           EOF
           
           cd /tmp/mesa_src
-          # Forzamos los permisos de ejecución en sus scripts nativos de Unisoc Tiger
           chmod +x *.sh || true
           
-          # Lanzamos la configuración de Meson oficial del mod aislando Zink para tu Mali-G52
           meson setup build --cross-file /tmp/cross_android.txt -Dplatforms=android -Dplatform-sdk-version=26 -Dgallium-drivers=zink -Dvulkan-drivers=[] -Dbuildtype=release -Dstrip=true
           ninja -C build
           
-          # Creamos la estructura limpia del contenedor
           mkdir -p /tmp/mali_wrapper/lib64
           mkdir -p /tmp/mali_wrapper/etc/vulkan/icd.d
           
-          # ESCANEO Y EXTRACCIÓN REAL: Buscamos el binario .so legítimo generado por el compilador de Over-cmd
           REAL_SO=$(find build/ -name "libgallium_dri.so" -o -name "libvulkan_freedreno.so" -o -name "*dri.so" | head -n 1)
           if [ ! -z "$REAL_SO" ] && [ -f "$REAL_SO" ]; then
             echo "Localizado binario del Mod en: $REAL_SO. Inyectando como libvulkan_wrapper.so"
@@ -83,7 +76,6 @@ jobs:
             cp -f src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
           fi
           
-          # Seteamos el manifiesto ICD apuntando de forma obligatoria a libvulkan_wrapper.so
           cat << 'EOF' > /tmp/mali_wrapper/etc/vulkan/icd.d/wrapper_icd_aarch64.json
           {
             "ICD": {
@@ -93,12 +85,11 @@ jobs:
           }
           EOF
           
-          # Empaquetamos el nuevo contenedor gráfico para Unisoc en formato wrapper.tzst
           cd /tmp/mali_wrapper
           tar -cf - . | zstd -19 > /tmp/wrapper.tzst
           cd -
 
-      - name: 8. Saneamiento de Recursos de Steven e Inyeccion Forzada del Mod Gráfico
+      - name: 8. Saneamiento de Recursos de Tu Fork e Inyeccion Forzada del Mod Gráfico
         run: |
           rm -rf .gradle app/.cxx app/build local.properties gradle.properties
           
@@ -107,10 +98,16 @@ jobs:
             if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
           done
           
-          # Colocamos el nuevo wrapper.tzst directamente en assets borrando cualquier residuo dividido anterior
           mkdir -p app/src/main/assets/
           rm -f app/src/main/assets/wrapper.tzst*
           cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
+          
+          # PARCHE COMPILADOR: Forzamos la restauración del archivo de extensiones gráfico original en tu propio árbol de código
+          VULKAN_C_PATH=$(find app/src/main/cpp -iname "vulkan.c" | head -n 1)
+          if [ ! -z "$VULKAN_C_PATH" ] && [ -f "$VULKAN_C_PATH" ]; then
+             echo "Restaurando mapeo de extensiones nativas en tu repositorio..."
+             git checkout HEAD -- "$VULKAN_C_PATH" || true
+          fi
           
           if [ -f "app/src/main/cpp/CMakeLists.txt" ] ; then
             echo "set(CMAKE_C_STANDARD 11)" > /tmp/cmake_new.txt
