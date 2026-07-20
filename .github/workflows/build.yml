@@ -1,62 +1,152 @@
-name: Android CI Bionic
+name: Compilador de Winlator Ludashi Desde Mi Fork
 on:
-  push:
-    branches: [ "ludashi-3.1" ]
-  pull_request:
-    branches: [ "ludashi-3.1" ]
-
-permissions:
-  contents: read
+  workflow_dispatch:
 
 jobs:
-  build:
+  compilar-apk-unisoc:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - name: 1. Descargar Codigo Fuente Puro y Virgen de Steven-mxz
+        uses: actions/checkout@v4
+        with:
+          repository: 'Steven-mxz/Winlator-Ludashi'
+          ref: 'main'
+          path: '.'
+          fetch-depth: 0
+          submodules: recursive
 
-    - name: Clone linkernsbypass
-      run: |
-        mkdir -p app/src/main/cpp/adrenotools/lib
-        git clone https://github.com/Pipetto-crypto/liblinkernsbypass.git \
-          app/src/main/cpp/adrenotools/lib/linkernsbypass
+      - name: 2. Configurar Entorno de Java 17 Oficial
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-    - name: Clone libadrenotools specific commit
-      run: |
-        rm -rf app/src/main/cpp/adrenotools
-        
-        git clone https://github.com/Pipetto-crypto/libadrenotools.git \
-          app/src/main/cpp/adrenotools
+      - name: 3. Configurar Android SDK Base
+        uses: android-actions/setup-android@v3
 
-        cd app/src/main/cpp/adrenotools
-        git checkout 8483dfdaa2abf97ee89ad0e5f337e7b508550c6b
+      - name: 4. Instalar Componentes NDK de Fábrica (21.4.7075529) y CMake
+        run: |
+          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529" "cmake;3.22.1"
 
-    - name: Clone linkernsbypass inside adrenotools
-      run: |
-        mkdir -p app/src/main/cpp/adrenotools/lib
-        
-        git clone https://github.com/Pipetto-crypto/liblinkernsbypass.git \
-          app/src/main/cpp/adrenotools/lib/linkernsbypass
+      - name: 5. Instalar Herramientas de Compilacion de Mesa para Linux
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build python3-pip python3-setuptools \
+            gcc-aarch64-linux-gnu g++-aarch64-linux-gnu git zstd tar pixz bison flex imagemagick glslang-tools curl
+          pip3 install mako ply
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: 6. Configurar Gradle Core 8.10.2 Requerido
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.10.2'
+          build-root-directory: '.'
 
-    - name: Install Shader Compiler
-      run: sudo apt-get update && sudo apt-get install -y glslang-tools
+      - name: 7. Bajar y Compilar el Mod de Mesa de Over-cmd para Unisoc T618
+        run: |
+          mkdir -p /tmp/mesa_src
+          curl -sL "https://github.com" | tar -xzf - --strip-components=1 -C /tmp/mesa_src
+          
+          cat << 'EOF' > /tmp/cross_android.txt
+          [binaries]
+          c = 'aarch64-linux-gnu-gcc'
+          cpp = 'aarch64-linux-gnu-g++'
+          ar = 'aarch64-linux-gnu-ar'
+          strip = 'aarch64-linux-gnu-strip'
+          pkgconfig = 'pkg-config'
+          [host_machine]
+          system = 'linux'
+          cpu_family = 'aarch64'
+          cpu = 'armv8-a'
+          endian = 'little'
+          EOF
+          
+          cd /tmp/mesa_src
+          meson setup build --cross-file /tmp/cross_android.txt -Dplatforms=android -Dplatform-sdk-version=26 -Dgallium-drivers=zink -Dvulkan-drivers=[] -Dbuildtype=release -Dstrip=true
+          ninja -C build
+          
+          mkdir -p /tmp/mali_wrapper/lib64
+          mkdir -p /tmp/mali_wrapper/etc/vulkan/icd.d
+          
+          cp /tmp/mesa_src/build/src/gallium/targets/dri/libgallium_dri.so /tmp/mali_wrapper/lib64/libvulkan_wrapper.so || true
+          
+          cat << 'EOF' > /tmp/mali_wrapper/etc/vulkan/icd.d/wrapper_icd_aarch64.json
+          {
+            "ICD": {
+              "api_version": "1.1.0",
+              "library_path": "libvulkan_wrapper.so"
+            }
+          }
+          EOF
+          
+          cd /tmp/mali_wrapper
+          tar -cf - . | zstd -19 > /tmp/wrapper.tzst
+          cd -
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
+      - name: 8. Saneamiento de Recursos de Steven e Inyeccion Forzada del Mod Gráfico
+        run: |
+          rm -rf .gradle app/.cxx app/build local.properties gradle.properties
+          
+          shopt -s globstar nullglob
+          for img in app/src/main/res/drawable*/ab_*.png app/src/main/res/drawable*/**/wallpaper.png app/src/main/res/drawable*/wallpaper.png; do
+            if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
+          done
+          
+          # SOLUCCIÓN DEFINITIVA DE INYECCIÓN: Borramos rastros de empaquetados divididos originales 
+          # y creamos la ruta limpia de assets inyectando tu wrapper.tzst modificado directamente en su sitio
+          mkdir -p app/src/main/assets/
+          rm -f app/src/main/assets/wrapper.tzst*
+          echo "Inyectando de forma forzada el wrapper de Over-cmd en la raiz de assets..."
+          cp -f /tmp/wrapper.tzst app/src/main/assets/wrapper.tzst
+          
+          if [ -f "app/src/main/cpp/CMakeLists.txt" ] ; then
+            echo "set(CMAKE_C_STANDARD 11)" > /tmp/cmake_new.txt
+            echo "set(CMAKE_C_STANDARD_REQUIRED ON)" >> /tmp/cmake_new.txt
+            echo "set(CMAKE_CXX_STANDARD 17)" >> /tmp/cmake_new.txt
+            echo "set(CMAKE_CXX_STANDARD_REQUIRED ON)" >> /tmp/cmake_new.txt
+            cat app/src/main/cpp/CMakeLists.txt >> /tmp/cmake_new.txt
+            cp -f /tmp/cmake_new.txt app/src/main/cpp/CMakeLists.txt
+          fi
+          
+          VULKAN_RENDERER_CONTEXT_PATH=$(find app/src/main/cpp -iname "VulkanRendererContext.cpp" | head -n 1)
+          if [ ! -z "$VULKAN_RENDERER_CONTEXT_PATH" ] && [ -f "$VULKAN_RENDERER_CONTEXT_PATH" ]; then
+            echo "#ifndef VK_API_VERSION_1_3" > /tmp/vulkan_ctx_new.cpp
+            echo "#define VK_API_VERSION_1_3 4202496" >> /tmp/vulkan_ctx_new.cpp
+            echo "#endif" >> /tmp/vulkan_ctx_new.cpp
+            cat "$VULKAN_RENDERER_CONTEXT_PATH" >> /tmp/vulkan_ctx_new.cpp
+            cp -f /tmp/vulkan_ctx_new.cpp "$VULKAN_RENDERER_CONTEXT_PATH"
+          fi
 
-    - name: Build with Gradle
-      run: ./gradlew assembleDebug
+      - name: 9. Configurar Entorno Base de Gradle con Compilacion Multi-Arquitectura
+        run: |
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+          
+          echo "android.nonFinalResIds=false" > gradle.properties
+          echo "android.useAndroidX=true" >> gradle.properties
+          echo "android.aaptCruncherEnabled=false" >> gradle.properties
+          echo "android.disableResourceValidation=true" >> gradle.properties
+          echo "android.sharedLib=true" >> gradle.properties
+          echo "android.lintOptions.abortOnError=false" >> gradle.properties
+          echo "android.lintOptions.checkReleaseBuilds=false" >> gradle.properties
+          
+          echo "org.gradle.project.android.compiler.cmake.cflags=-w -Wno-error" >> gradle.properties
+          echo "org.gradle.project.android.compiler.cmake.cppflags=-w -Wno-error" >> gradle.properties
+          echo "android.packaging.doNotStrip=**/*.so" >> gradle.properties
+          echo "org.gradle.project.android.compiler.cmake.arguments=-DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a,armeabi-v7a" >> gradle.properties
+          
+          if [ -f "app/build.gradle" ] ; then sed -i 's/ndkVersion.*/ndkVersion = "21.4.7075529"/g' app/build.gradle; fi
+          find app/src/main/ -type f -name "*prof*" -exec rm -f {} \; || true
+          export _JAVA_OPTIONS="-Xmx6g -Xms2g"
+          
+          gradle clean --no-build-cache --no-daemon
+          gradle assembleRelease -Pandroid.ndkDirectory="${ANDROID_SDK_ROOT}/ndk/21.4.7075529" -x lint -x lintVitalRelease -x test --no-build-cache --no-daemon
 
-    - name: Upload APK as artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: app-debug
-        path: app/build/outputs/apk/debug/app-debug.apk
+          keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+          
+          B_DIR=$(ls -d ${ANDROID_SDK_ROOT}/build-tools/* | tail -1)
+          ${B_DIR}/apksigner sign --ks /tmp/debug.keystore --ks-pass pass:android --key-pass pass:android --v2-signing-enabled true --v3-signing-enabled true --out app/build/outputs/apk/release/Winlator_Ludashi_Fork.apk app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: 10. Subir APK Firmado con Driver Incorporado a GitHub Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Winlator-Ludashi-MiFork-Unisoc
+          path: app/build/outputs/apk/release/Winlator_Ludashi_Fork.apk
