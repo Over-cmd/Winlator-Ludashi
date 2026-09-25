@@ -50,5 +50,5 @@ jobs:
           git checkout -b ludashi-mali-fusion
           
           # 🚨 FIJADO SUPREMO: Usamos las variables nativas del host para evitar errores de escritura en la URL
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@://github.com{{ github.repository }}.git ludashi-mali-fusion --force
+          git push https://x-access-token:$GITHUB_TOKEN@://github.com $REPONAME.git ludashi-mali-fusion --force
           echo "-> ¡Rama fusionada 'ludashi-mali-fusion' subida con total éxito!"
