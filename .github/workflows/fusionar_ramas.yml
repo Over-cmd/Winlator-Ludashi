@@ -23,7 +23,7 @@ jobs:
       - name: 3. Vincular el Repositorio de Alexvorxx y Fusionar
         run: |
           # Añadimos el repositorio de alexvorxx como una fuente remota de datos
-          git remote add alexsource https://github.com
+          git remote add alexsource https://github.com/alexvorxx/winlator.git
           git fetch alexsource
           
           echo "-> [Host] Ejecutando Merge Estratégico por la fuerza..."
