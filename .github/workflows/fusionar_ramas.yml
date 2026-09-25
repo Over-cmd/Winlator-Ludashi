@@ -43,9 +43,12 @@ jobs:
           fi
 
       - name: 5. Subir Rama Fusionada a tu Repositorio de GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Creamos una nueva rama limpia llamada 'ludashi-mali-fusion' para no sobreescribir tu rama original
           git checkout -b ludashi-mali-fusion
-          # 🚨 FIJADO: Forzamos la autenticación usando la variable de entorno del token de GitHub
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@://github.com ludashi-mali-fusion --force
+          
+          # 🚨 FIJADO SUPREMO: Usamos las variables nativas del host para evitar errores de escritura en la URL
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@://github.com{{ github.repository }}.git ludashi-mali-fusion --force
           echo "-> ¡Rama fusionada 'ludashi-mali-fusion' subida con total éxito!"
