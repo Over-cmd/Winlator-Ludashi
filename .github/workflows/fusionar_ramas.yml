@@ -46,5 +46,6 @@ jobs:
         run: |
           # Creamos una nueva rama limpia llamada 'ludashi-mali-fusion' para no sobreescribir tu rama original
           git checkout -b ludashi-mali-fusion
-          git push origin ludashi-mali-fusion --force
+          # 🚨 FIJADO: Forzamos la autenticación usando la variable de entorno del token de GitHub
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@://github.com ludashi-mali-fusion --force
           echo "-> ¡Rama fusionada 'ludashi-mali-fusion' subida con total éxito!"
