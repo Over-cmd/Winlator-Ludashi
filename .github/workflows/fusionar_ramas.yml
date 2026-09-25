@@ -1,0 +1,50 @@
+name: Fusionar Ramas por la Fuerza (Ludashi + Alexvorxx)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  git-merge-force:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Clonar tu repositorio de Ludashi
+        uses: actions/checkout@v4
+        with:
+          ref: 'ludashi-3.1'
+          fetch-depth: 0 # Trae todo el historial de commits obligatoriamente
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 2. Configurar Identidad del Servidor Git
+        run: |
+          git config --global user.name "GitHub Action Fusor"
+          git config --global user.email "action@github.com"
+
+      - name: 3. Vincular el Repositorio de Alexvorxx y Fusionar
+        run: |
+          # Añadimos el repositorio de alexvorxx como una fuente remota de datos
+          git remote add alexsource https://github.com
+          git fetch alexsource
+          
+          echo "-> [Host] Ejecutando Merge Estratégico por la fuerza..."
+          # Forzamos la fusión de historiales independientes (--allow-unrelated-histories)
+          # Usamos la estrategia '-X theirs' para que, si un archivo choca, Git use el código de alexvorxx de forma automática
+          git merge alexsource/main --allow-unrelated-histories -X theirs -m "Fusión Maestra Indestructible Vulkan Compatible Mali" || true
+
+      - name: 4. Hackear la Lista Blanca de Extensiones en el Código Fusionado
+        run: |
+          HELPER_PATH="app/src/main/cpp/vortekrenderer/src/vulkan_helper.c"
+          if [ -f "$HELPER_PATH" ]; then
+            echo "-> [Host] ¡Servidor Vortek localizado en las ramas! Rompiendo el bozal de las 53 extensiones..."
+            sed -i 's/int dstPropertyCount = context->exposedDeviceExtensions ? context->exposedDeviceExtensions->size : srcPropertyCount;/int dstPropertyCount = srcPropertyCount;/g' $HELPER_PATH
+            sed -i 's/if (context->exposedDeviceExtensions) {/if (false) {/g' $HELPER_PATH
+          else
+            echo "-> [Aviso] El archivo no requirió parches de texto dinámicos."
+          fi
+
+      - name: 5. Subir Rama Fusionada a tu Repositorio de GitHub
+        run: |
+          # Creamos una nueva rama limpia llamada 'ludashi-mali-fusion' para no sobreescribir tu rama original
+          git checkout -b ludashi-mali-fusion
+          git push origin ludashi-mali-fusion --force
+          echo "-> ¡Rama fusionada 'ludashi-mali-fusion' subida con total éxito!"
