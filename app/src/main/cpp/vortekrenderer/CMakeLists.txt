@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 
+# 🚀 LA LLAVE MAESTRA: Forzamos al NDK a usar la API 27 (Android 8.1) para desbloquear AHardwareBuffer_getFd
+set(ANDROID_PLATFORM android-27)
+
 project(VortekRenderer)
 
 # 🚀 PARCHE DEFINITIVO: Desactivamos -Werror y forzamos el bypass para los calificadores de punteros
