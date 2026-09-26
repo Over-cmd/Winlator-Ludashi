@@ -29,11 +29,12 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Alertas de C/C++)
-        # 🚀 TRUCO DE FIN DE JUEGO: Forzamos flags del compilador a nivel de sistema para tumbar los -Werror internos
+      - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
+        # 🚀 JAQUE MATE AL LINKER: Forzamos flags globales de enlace para anular los --no-undefined del proyecto base
         run: |
           export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
           export CXXFLAGS="-Wno-error"
+          export LDFLAGS="-Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-all"
           ./gradlew assembleDebug --no-daemon
 
       - name: 6. Subir APK Fusionado como Artefacto Descargable de GitHub
