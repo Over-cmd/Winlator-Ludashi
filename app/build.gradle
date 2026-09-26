@@ -88,8 +88,8 @@ android {
 
         externalNativeBuild {
             cmake {
-                // 🚀 ARMA SECRETA GLOBAL: Forzamos al NDK a compilar todo usando la API 27 (Android 8.1)
-                arguments "-DANDROID_PLATFORM=android-27"
+                // 🚀 ARMA SECRETA GLOBAL: Forzamos al NDK a compilar todo usando la API 29 (Android 10)
+                arguments "-DANDROID_PLATFORM=android-29"
                 cFlags "-Wno-error=incompatible-pointer-types-discards-qualifiers", "-Wno-error=missing-designated-field-initializers"
                 cppFlags "-std=c++17", "-Wno-error=missing-designated-field-initializers"
             }
