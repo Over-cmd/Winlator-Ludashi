@@ -14,20 +14,25 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: 2. Configurar Entorno de Java (JDK 17)
+      - name: 2. Instalar Dependencias del Sistema para Compilación Nativa
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build patchelf
+
+      - name: 3. Configurar Entorno de Java (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Otorgar Permisos de Ejecución al Compilador Local Gradle
+      - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 4. Ejecutar Forja y Compilación del APK (Modo Depuración)
+      - name: 5. Ejecutar Forja y Compilación del APK (Modo Depuración)
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: 5. Subir APK Fusionado como Artefacto Descargable de GitHub
+      - name: 6. Subir APK Fusionado como Artefacto Descargable de GitHub
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-Mali-Vortek-APK
