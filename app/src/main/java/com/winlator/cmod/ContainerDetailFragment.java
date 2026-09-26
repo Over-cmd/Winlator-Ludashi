@@ -717,15 +717,24 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
                 String envVars = envVarsView.getEnvVars();
                 String graphicsDriver = StringUtils.parseIdentifier(sGraphicsDriver.getSelectedItem());
                 String graphicsDriverConfig = vGraphicsDriverConfig.getTag().toString();
-                HashMap<String, String> config = GraphicsDriverConfigDialog
-                        .parseGraphicsDriverConfig(graphicsDriverConfig);
-                if (config.get("version").isEmpty()) {
-                    config.put("version",
-                            GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context)
-                                    ? DefaultVersion.WRAPPER_ADRENO
-                                    : DefaultVersion.WRAPPER);
-                    graphicsDriverConfig = GraphicsDriverConfigDialog.toGraphicsDriverConfig(config);
+                
+                // 🚀 PARCHE MAESTRO: Si seleccionan Vortek, inyectamos su configuración física para Mali
+                if (sGraphicsDriver.getSelectedItem().toString().contains("Vortek")) {
+                    graphicsDriver = "Wrapper"; 
+                    graphicsDriverConfig = "version=vortek-2.1.tzst,vulkanVersion=1.3,gpuName=Device,maxDeviceMemory=0,presentMode=mailbox,resourceType=auto,syncFrame=0,disablePresentWait=0,bcnEmulation=auto,bcnEmulationType=compute,bcnEmulationCache=0,blacklistedExtensions=";
+                } else {
+                    // Lógica original de Winlator para otros drivers
+                    HashMap<String, String> config = GraphicsDriverConfigDialog
+                            .parseGraphicsDriverConfig(graphicsDriverConfig);
+                    if (config.get("version").isEmpty()) {
+                        config.put("version",
+                                GPUInformation.isDriverSupported(DefaultVersion.WRAPPER_ADRENO, context)
+                                        ? DefaultVersion.WRAPPER_ADRENO
+                                        : DefaultVersion.WRAPPER);
+                        graphicsDriverConfig = GraphicsDriverConfigDialog.toGraphicsDriverConfig(config);
+                    }
                 }
+
                 String dxwrapper = StringUtils.parseIdentifier(sDXWrapper.getSelectedItem());
                 String dxwrapperConfig = vDXWrapperConfig.getTag().toString();
                 String audioDriver = StringUtils.parseIdentifier(sAudioDriver.getSelectedItem());
