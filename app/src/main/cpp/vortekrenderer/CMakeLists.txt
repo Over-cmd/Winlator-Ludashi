@@ -37,4 +37,6 @@ target_link_libraries(vortekrenderer
                       adrenotools
                       winlator
                       log
-                      android)
+                      android  # 🚀 Asegura el acceso a las APIs básicas del sistema
+                      nativewindow # 🚀 SOLUCIÓN SUPREMA: Vincula físicamente el soporte de Hardware Buffers del Kernel de Android
+)
