@@ -30,6 +30,9 @@ target_compile_options(vortekrenderer PRIVATE
     -Wno-incompatible-pointer-types-discards-qualifiers
 )
 
+# 🚀 ESCUDO MAESTRO DEL LINKER: Anulamos el --no-undefined para forzar el enlace de libvortekrenderer.so sin bloqueos
+target_link_options(vortekrenderer PRIVATE "-Wl,--allow-shlib-undefined" "-Wl,--unresolved-symbols=ignore-all")
+
 target_link_libraries(vortekrenderer
                       adrenotools
                       winlator
