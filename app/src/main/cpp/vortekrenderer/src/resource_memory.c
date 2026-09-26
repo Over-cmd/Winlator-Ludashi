@@ -1,19 +1,11 @@
-// 🚀 INYECCIÓN MAESTRA: Forzamos al NDK a exponer AHardwareBuffer_getFd en la API 29 de forma local
-#ifdef __ANDROID__
-  #ifndef __ANDROID_API__
-    #define __ANDROID_API__ 29
-  #else
-    #undef __ANDROID_API__
-    #define __ANDROID_API__ 29
-  #endif
-#endif
-
-#include <android/hardware_buffer.h> // 🚀 CABECERA OFICIAL: Carga la función nativa de Google de forma transparente
 #include "resource_memory.h"
 #include "sysvshared_memory.h"
 #include "vulkan_helper.h"
 #include "dma_utils.h"
-#include <unistd.h>
+
+// 🚀 LA SOLUCIÓN INYECTADA: Declaramos el prototipo local propio del núcleo de Winlator
+// pero sin la palabra "extern" confusa para el Linker, forzando la firma de tipo C pura.
+int AHardwareBuffer_getFd(AHardwareBuffer* hardwareBuffer);
 
 extern DeviceMemoryInfo deviceMemoryInfo;
 
