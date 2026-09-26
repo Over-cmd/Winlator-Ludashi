@@ -25,6 +25,7 @@
         <item>System</item>
         <item>v819</item>
         <item>turnip26.2.0</item>
+        <item>@string/vortek_driver_v21</item>
     </string-array>
     <string-array name="audio_driver_entries">
         <item>ALSA</item>
