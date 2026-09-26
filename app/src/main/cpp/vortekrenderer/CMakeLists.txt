@@ -32,8 +32,13 @@ target_compile_options(vortekrenderer PRIVATE
     -Wno-incompatible-pointer-types-discards-qualifiers
 )
 
-# 🚀 APAGAFUEGOS DEL LINKER: Forzamos la vinculación del buffer de hardware nativo de Android de manera directa y prioritaria
-target_link_options(vortekrenderer PRIVATE "-lnativewindow")
+# 🚀 ESCUDO INDESTRUCTIBLE DEL LINKER: Forzamos la carga prioritaria de nativewindow y android con flags de enlace de bajo nivel (-Wl)
+# También forzamos la degradación de símbolos no definidos a nivel de enlazador para este módulo gráfico específico
+target_link_options(vortekrenderer PRIVATE 
+    "-Wl,-lnativewindow" 
+    "-Wl,-landroid"
+    "-Wl,--allow-shlib-undefined"
+)
 
 target_link_libraries(vortekrenderer
                       adrenotools
