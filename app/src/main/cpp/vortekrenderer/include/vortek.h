@@ -9,7 +9,7 @@
 #define VK_HANDLE_BYTE_COUNT 8
 #define THREAD_POOL_NUM_THREADS 8
 
-#include "winlator.h"
+#include "../../winlator/include/winlator.h"
 
 #ifdef __ANDROID__
 #define VT_SERVER 1
