@@ -119,3 +119,6 @@ target_link_libraries(vulkan_renderer
         dl
         atomic
 )
+
+# 🚨 FUSIÓN MAESTRA: Agregamos el renderizador compatible con Vulkan Mali
+add_subdirectory(vortekrenderer)
