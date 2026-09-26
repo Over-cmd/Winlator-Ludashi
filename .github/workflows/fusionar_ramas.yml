@@ -22,6 +22,10 @@ jobs:
 
       - name: 3. Inyectar Físicamente el Soporte Vulkan Mali de Alexvorxx
         run: |
+          echo "-> [Host] Desactivando filtro LFS para saltar el bloqueo de presupuesto..."
+          # 🚨 TRUCO MAESTRO: Saltamos la descarga de archivos grandes bloqueados por LFS
+          export GIT_LFS_SKIP_SMUDGE=1
+          
           echo "-> [Host] Descargando el código fuente gráfico de Alexvorxx..."
           git clone --depth=1 https://github.com/alexvorxx/winlator.git /tmp/alexsource
           
@@ -33,6 +37,7 @@ jobs:
           # Guardamos los cambios locales en el entorno temporal de Git
           git add .
           git commit -m "Fusión Física Forzada de Módulos Gráficos Mali" || true
+
 
       - name: 4. Hackear la Lista Blanca de Extensiones en el Código Fusionado
         run: |
