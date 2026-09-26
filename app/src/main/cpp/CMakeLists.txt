@@ -8,7 +8,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wno-error")
 add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
-add_subdirectory(vortekrenderer) # 🚀 REGISTRO CRÍTICO: Activamos físicamente tu nuevo módulo gráfico en el árbol de compilación
 
 add_library(winlator SHARED
         xr/engine.c
