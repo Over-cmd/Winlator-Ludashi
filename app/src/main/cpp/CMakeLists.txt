@@ -1,14 +1,12 @@
 cmake_minimum_required(VERSION 3.22.1)
+
 project(Winlator)
 
-# 🚀 TRUCO MAESTRO: Forzamos la desactivación de -Werror e inyectamos los escapes para los punteros de Vortek
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration -Wno-error -Wno-incompatible-pointer-types-discards-qualifiers")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wno-error")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration")
 
 add_subdirectory(OpenXR-SDK)
 add_subdirectory(patchelf)
 add_subdirectory(adrenotools)
-add_subdirectory(vortekrenderer) # 🚀 REGISTRO CRÍTICO: Activamos físicamente tu nuevo módulo gráfico en el árbol de compilación
 
 add_library(winlator SHARED
         xr/engine.c
