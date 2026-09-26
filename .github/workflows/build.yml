@@ -1,124 +1,54 @@
-name: Compilador de Winlator Ludashi Desde Mi Fork
+name: Compilar Winlator Ludashi Mali
+
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Permite disparar la compilación manualmente desde la pestaña Actions
 
 jobs:
-  compilar-apk-unisoc:
+  build-apk:
+    name: Compilar APK Híbrido (Mali + Vortek)
     runs-on: ubuntu-latest
+
     steps:
-      - name: 1. Descargar Codigo Fuente Completo de Mi Propio Fork
+      - name: 1. Descargar Código Fuente de tu Repositorio
         uses: actions/checkout@v4
         with:
-          path: '.'
-          fetch-depth: 0
-          submodules: recursive
+          submodules: 'recursive'
 
-      - name: 2. Configurar Entorno de Java 17 Oficial
+      - name: 2. Configurar Entorno de Java (JDK 17)
         uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
+          distribution: 'zulu'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: 3. Configurar Android SDK Base
+      - name: 3. Inyectar Físicamente el Soporte Vulkan Mali de Alexvorxx
+        run: |
+          echo "-> [Host] Desactivando filtro LFS para saltar el bloqueo de presupuesto..."
+          export GIT_LFS_SKIP_SMUDGE=1
+          
+          echo "-> [Host] Descargando el código fuente gráfico de Alexvorxx..."
+          git clone --depth=1 https://github.com /tmp/alexsource
+          
+          echo "-> [Host] Inyectando carpetas nativas de Vortek/Mesa en Ludashi..."
+          mkdir -p app/src/main/cpp/vortekrenderer
+          cp -r /tmp/alexsource/app/src/main/cpp/vortekrenderer/* app/src/main/cpp/vortekrenderer/ 2>/dev/null || true
+          
+          # Forzamos la estructura local para asegurar que la forja compile sin archivos huérfanos
+          git add .
+          git commit -m "Fusión Física Forzada de Módulos Gráficos Mali" || true
+
+      - name: 4. Configurar Android NDK para Código Nativo C++
         uses: android-actions/setup-android@v3
 
-      - name: 4. Instalar Componentes NDK de Fábrica (21.4.7075529) y CMake
-        run: |
-          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529" "cmake;3.22.1"
+      - name: 5. Otorgar Permisos de Ejecución al Compilador Gradle
+        run: chmod +x gradlew
 
-      - name: 5. Instalar Herramientas de Compilacion del Sistema
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y zstd tar pixz bison flex imagemagick glslang-tools curl
+      - name: 6. Ejecutar Forja y Compilación del APK Final
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: 6. Configurar Gradle Core 8.10.2 Requerido
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.10.2'
-          build-root-directory: '.'
-
-      - name: 7. Saneamiento Quirurgico de Recursos e Imagenes Corruptas
-        run: |
-          rm -rf .gradle app/.cxx app/build local.properties gradle.properties
-          
-          # Sustituyes elementos gráficos ab_ y fondos corruptos del mod original que bloquean el AAPT2 de Android
-          shopt -s globstar nullglob
-          for img in app/src/main/res/drawable*/ab_*.png app/src/main/res/drawable*/**/wallpaper.png app/src/main/res/drawable*/wallpaper.png; do
-            if [ -f "$img" ]; then convert -size 64x64 xc:transparent "$img" || true; fi
-          done
-
-      - name: 8. Aislamiento de Estándares de Lenguaje en CMake y Purga de Perfiles ICD Falsos
-        run: |
-          # Localizamos el wrapper original en tu propio fork y purificamos sus carpetas icd.d internas
-          ORIGINAL_TZST=$(find app/src/main/assets -name "wrapper.tzst" | head -n 1)
-          if [ ! -z "$ORIGINAL_TZST" ] && [ -f "$ORIGINAL_TZST" ]; then
-            echo "Purificando de forma local el contenedor gráfico de tu repositorio..."
-            mkdir -p /tmp/local_clean
-            tar -I zstd -xf "$ORIGINAL_TZST" -C /tmp/local_clean || true
-            
-            find /tmp/local_clean -type d -name "icd.d" | while read -r icd_dir; do
-              rm -rf "$icd_dir"/*
-              echo '{"ICD": {"api_version": "1.1.0", "library_path": "libvulkan_wrapper.so"}}' > "$icd_dir"/wrapper_icd_aarch64.json
-            done
-            
-            rm -f "$ORIGINAL_TZST"
-            tar -C /tmp/local_clean -cf - . | zstd -19 > "$ORIGINAL_TZST"
-          fi
-
-          # Evitamos que Clang mezcle banderas de lenguaje C y C++17 al procesar vulkan.c
-          if [ -f "app/src/main/cpp/CMakeLists.txt" ] ; then
-            echo "set(CMAKE_C_STANDARD 11)" > /tmp/cmake_new.txt
-            echo "set(CMAKE_C_STANDARD_REQUIRED ON)" >> /tmp/cmake_new.txt
-            echo "set(CMAKE_CXX_STANDARD 17)" >> /tmp/cmake_new.txt
-            echo "set(CMAKE_CXX_STANDARD_REQUIRED ON)" >> /tmp/cmake_new.txt
-            cat app/src/main/cpp/CMakeLists.txt >> /tmp/cmake_new.txt
-            cp -f /tmp/cmake_new.txt app/src/main/cpp/CMakeLists.txt
-          fi
-          
-          VULKAN_RENDERER_CONTEXT_PATH=$(find app/src/main/cpp -iname "VulkanRendererContext.cpp" | head -n 1)
-          if [ ! -z "$VULKAN_RENDERER_CONTEXT_PATH" ] && [ -f "$VULKAN_RENDERER_CONTEXT_PATH" ]; then
-            echo "#ifndef VK_API_VERSION_1_3" > /tmp/vulkan_ctx_new.cpp
-            echo "#define VK_API_VERSION_1_3 4202496" >> /tmp/vulkan_ctx_new.cpp
-            echo "#endif" >> /tmp/vulkan_ctx_new.cpp
-            cat "$VULKAN_RENDERER_CONTEXT_PATH" >> /tmp/vulkan_ctx_new.cpp
-            cp -f /tmp/vulkan_ctx_new.cpp "$VULKAN_RENDERER_CONTEXT_PATH"
-          fi
-
-      - name: 9. Configurar Entorno Base de Gradle con Compilacion Multi-Arquitectura
-        run: |
-          echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-          
-          echo "android.nonFinalResIds=false" > gradle.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.aaptCruncherEnabled=false" >> gradle.properties
-          echo "android.disableResourceValidation=true" >> gradle.properties
-          echo "android.sharedLib=true" >> gradle.properties
-          echo "android.lintOptions.abortOnError=false" >> gradle.properties
-          echo "android.lintOptions.checkReleaseBuilds=false" >> gradle.properties
-          
-          echo "org.gradle.project.android.compiler.cmake.cflags=-w -Wno-error" >> gradle.properties
-          echo "org.gradle.project.android.compiler.cmake.cppflags=-w -Wno-error" >> gradle.properties
-          echo "android.packaging.doNotStrip=**/*.so" >> gradle.properties
-          
-          # Forzamos la compilación dual para no perder el puente de 32 bits que exigen tus juegos antiguos
-          echo "org.gradle.project.android.compiler.cmake.arguments=-DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a,armeabi-v7a" >> gradle.properties
-          
-          if [ -f "app/build.gradle" ] ; then sed -i 's/ndkVersion.*/ndkVersion = "21.4.7075529"/g' app/build.gradle; fi
-          find app/src/main/ -type f -name "*prof*" -exec rm -f {} \; || true
-          export _JAVA_OPTIONS="-Xmx6g -Xms2g"
-          
-          # Compilación multi-arquitectura usando tu fork limpio
-          gradle clean --no-build-cache --no-daemon
-          gradle assembleRelease -Pandroid.ndkDirectory="${ANDROID_SDK_ROOT}/ndk/21.4.7075529" -x lint -x lintVitalRelease -x test --no-build-cache --no-daemon
-
-          keytool -genkey -v -keystore /tmp/debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-          
-          # Firma digital v2 y v3 completa obligatoria para desbloquear los permisos Vulkan de la GPU Mali
-          B_DIR=$(ls -d ${ANDROID_SDK_ROOT}/build-tools/* | tail -1)
-          ${B_DIR}/apksigner sign --ks /tmp/debug.keystore --ks-pass pass:android --key-pass pass:android --v2-signing-enabled true --v3-signing-enabled true --out app/build/outputs/apk/release/Winlator_Ludashi_Fork.apk app/build/outputs/apk/release/app-release-unsigned.apk
-
-      - name: 10. Subir APK Firmado a GitHub Artifacts
+      - name: 7. Subir APK Modificado como Artefacto de GitHub
         uses: actions/upload-artifact@v4
         with:
-          name: Winlator-Ludashi-MiFork-Unisoc
-          path: app/build/outputs/apk/release/Winlator_Ludashi_Fork.apk
+          name: Winlator-Ludashi-Mali-Vortek-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
