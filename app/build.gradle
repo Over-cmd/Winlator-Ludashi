@@ -90,6 +90,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags ''
+                arguments "-DCMAKE_C_FLAGS=-Wno-error=incompatible-pointer-types-discards-qualifiers"
             }
         }
 
