@@ -280,23 +280,23 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         String renderer = GPUInformation.getRenderer(null, null);
 
-        // 1. Si detecta GPU Mali, forzamos la carga del paquete físico de Vortek y sus variables
+        // 1. Si el dispositivo tiene una GPU Mali, inyectamos Vortek y corregimos las variables
         if (renderer != null && renderer.contains("Mali")) {
-            execEnvVars.put("BOX64_MMAP32", "0");
-            
-            // 🚀 ASIGNACIÓN E INYECCIÓN DEL CONTROLADOR SUBIDO
-            Log.d("GuestProgramLauncherComponent", "Mali detectada: Configurando entorno gráfico y asignando paquete vortek-2.1");
-            
-            // Forzamos al gestor de drivers de Winlator a apuntar al archivo que subiste
+            // Forzamos al emulador a usar el paquete gráfico de Vortek que subiste a assets
             execEnvVars.put("CUSTOM_GRAPHICS_DRIVER", "vortek-2.1.tzst"); 
             
-            // Variables de traducción gráfica para el backend Mesa/Zink
+            // 🚨 SOBREESCRITURA DE SEGURIDAD: Cambiamos el "1" del JSON a "0" para evitar fallos de memoria
+            execEnvVars.put("BOX64_MMAP32", "0");
+            
+            // Activamos las variables nativas del backend Mesa/Zink optimizadas por Vortek
             execEnvVars.put("GALLIUM_DRIVER", "zink");
             execEnvVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
             execEnvVars.put("VORTEK_RENDERER", "1");
+            
+            Log.d("GuestProgramLauncherComponent", "Mali detectada: Configuración de Vortek 2.1 inyectada con éxito y MMAP32 desactivado.");
         }
 
-        // 2. Control seguro contra nulos para evitar cierres (anti-crash)
+        // 2. Control seguro contra nulos (Mantiene la lógica original de Winlator sin provocar cierres)
         String mmap32Val = execEnvVars.get("BOX64_MMAP32");
         if ("1".equals(mmap32Val) && !wineInfo.isArm64EC()) {
             Log.d("GuestProgramLauncherComponent", "Disabling map memory placed");
