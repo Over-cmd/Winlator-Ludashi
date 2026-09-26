@@ -22,6 +22,7 @@ import com.winlator.cmod.contents.AdrenotoolsManager;
 import com.winlator.cmod.contents.Downloader;
 import java.io.File;
 import java.util.ArrayList;
+import android.util.Log;
 import java.util.List;
 import java.util.concurrent.Executors;
 import org.json.JSONArray;
