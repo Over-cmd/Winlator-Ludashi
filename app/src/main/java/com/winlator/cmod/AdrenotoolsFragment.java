@@ -44,10 +44,32 @@ public class AdrenotoolsFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         ViewGroup layout = (ViewGroup)inflater.inflate(R.layout.adrenotools_fragment, container, false);
+
+        // 🚀 ESCUDO MALI-VORTEK: Si la GPU real es Mali, desactivamos Adrenotools de forma segura
+        String renderer = com.winlator.cmod.core.GPUInformation.getRenderer(null, getContext());
+        if (renderer != null && renderer.contains("Mali")) {
+            Log.d("AdrenotoolsFragment", "Mali detectada: Omitiendo inicialización de Qualcomm Adrenotools para evitar crasheos.");
+            
+            // Reutilizamos el TextView principal de la pantalla para mostrar un mensaje limpio al usuario
+            TextView tvTitle = layout.findViewById(R.id.RecyclerView) != null ? (TextView) layout.findViewById(R.id.TVName) : null;
+            if (tvTitle != null) {
+                tvTitle.setText("Adrenotools desactivado. Usando el renderizador optimizado de Vortek para GPU Mali.");
+                tvTitle.setVisibility(View.VISIBLE);
+            }
+            
+            // Ocultamos los botones de instalación para evitar ejecuciones accidentales
+            View btInstall = layout.findViewById(R.id.BTInstallDriver);
+            if (btInstall != null) btInstall.setVisibility(View.GONE);
+            View btUpdates = layout.findViewById(R.id.BTCheckUpdates);
+            if (btUpdates != null) btUpdates.setVisibility(View.GONE);
+            
+            return layout;
+        }
+
+        // --- Código original de tu fork para dispositivos Snapdragon ---
         recyclerView = layout.findViewById(R.id.RecyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(recyclerView.getContext()));
         recyclerView.setAdapter(new DriversAdapter(adrenotoolsManager.enumarateInstalledDrivers()));
-
 
         updatesRecyclerView = layout.findViewById(R.id.UpdatesRecyclerView);
         updatesRecyclerView.setLayoutManager(new LinearLayoutManager(updatesRecyclerView.getContext()));
