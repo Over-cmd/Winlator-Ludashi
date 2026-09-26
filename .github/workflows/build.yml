@@ -21,16 +21,13 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Configurar Herramientas de Android SDK y NDK
-        uses: android-actions/setup-android@v3
-
-      - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
+      - name: 3. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 5. Ejecutar Forja y Compilación del APK (Modo Depuración)
+      - name: 4. Ejecutar Forja y Compilación del APK (Modo Depuración)
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: 6. Subir APK Fusionado como Artefacto Descargable de GitHub
+      - name: 5. Subir APK Fusionado como Artefacto Descargable de GitHub
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-Mali-Vortek-APK
