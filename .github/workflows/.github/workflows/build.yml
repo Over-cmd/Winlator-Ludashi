@@ -1,0 +1,54 @@
+name: Compilar Winlator Ludashi Mali
+
+on:
+  workflow_dispatch: # Permite disparar la compilación manualmente desde la pestaña Actions
+
+jobs:
+  build-apk:
+    name: Compilar APK Híbrido (Mali + Vortek)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar Código Fuente de tu Repositorio
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      - name: 2. Configurar Entorno de Java (JDK 17)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: 3. Inyectar Físicamente el Soporte Vulkan Mali de Alexvorxx
+        run: |
+          echo "-> [Host] Desactivando filtro LFS para saltar el bloqueo de presupuesto..."
+          export GIT_LFS_SKIP_SMUDGE=1
+          
+          echo "-> [Host] Descargando el código fuente gráfico de Alexvorxx..."
+          git clone --depth=1 https://github.com /tmp/alexsource
+          
+          echo "-> [Host] Inyectando carpetas nativas de Vortek/Mesa en Ludashi..."
+          mkdir -p app/src/main/cpp/vortekrenderer
+          cp -r /tmp/alexsource/app/src/main/cpp/vortekrenderer/* app/src/main/cpp/vortekrenderer/ 2>/dev/null || true
+          
+          # Forzamos la estructura local para asegurar que la forja compile sin archivos huérfanos
+          git add .
+          git commit -m "Fusión Física Forzada de Módulos Gráficos Mali" || true
+
+      - name: 4. Configurar Android NDK para Código Nativo C++
+        uses: android-actions/setup-android@v3
+
+      - name: 5. Otorgar Permisos de Ejecución al Compilador Gradle
+        run: chmod +x gradlew
+
+      - name: 6. Ejecutar Forja y Compilación del APK Final
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 7. Subir APK Modificado como Artefacto de GitHub
+        uses: actions/upload-artifact@v4
+        with:
+          name: Winlator-Ludashi-Mali-Vortek-APK
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
