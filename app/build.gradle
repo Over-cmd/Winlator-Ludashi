@@ -89,8 +89,8 @@ android {
         // External native build from Winlator
         externalNativeBuild {
             cmake {
-                cppFlags ''
-                arguments "-DCMAKE_C_FLAGS=-Wno-error=incompatible-pointer-types-discards-qualifiers"
+                cFlags "-Wno-error=incompatible-pointer-types-discards-qualifiers", "-Wno-error=missing-designated-field-initializers"
+                cppFlags "-std=c++17", "-Wno-error=missing-designated-field-initializers"
             }
         }
 
