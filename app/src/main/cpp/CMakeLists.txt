@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(Winlator)
 
-# 🚀 ESCUDO MAESTRO: Forzamos la API 27 de forma global en la raíz nativa para desbloquear AHardwareBuffer_getFd
-set(ANDROID_PLATFORM android-27)
+# 🚀 ESCUDO MAESTRO: Forzamos la API 29 de forma global en la raíz nativa para desbloquear AHardwareBuffer_getFd
+set(ANDROID_PLATFORM android-29)
 
 # 🚀 TRUCO MAESTRO: Forzamos la desactivación de -Werror e inyectamos los escapes para los punteros de Vortek
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -Wno-unused-function -Wimplicit-function-declaration -Wno-error -Wno-incompatible-pointer-types-discards-qualifiers")
