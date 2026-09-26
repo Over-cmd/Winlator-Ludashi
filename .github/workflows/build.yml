@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar Código Fuente de tu Repositorio
+      - name: 1. Descargar Código Fuente Completo de tu Rama
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
@@ -21,32 +21,16 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Inyectar Físicamente el Soporte Vulkan Mali de Alexvorxx
-        run: |
-          echo "-> [Host] Desactivando filtro LFS para saltar el bloqueo de presupuesto..."
-          export GIT_LFS_SKIP_SMUDGE=1
-          
-          echo "-> [Host] Descargando el código fuente gráfico de Alexvorxx..."
-          git clone --depth=1 https://github.com /tmp/alexsource
-          
-          echo "-> [Host] Inyectando carpetas nativas de Vortek/Mesa en Ludashi..."
-          mkdir -p app/src/main/cpp/vortekrenderer
-          cp -r /tmp/alexsource/app/src/main/cpp/vortekrenderer/* app/src/main/cpp/vortekrenderer/ 2>/dev/null || true
-          
-          # Forzamos la estructura local para asegurar que la forja compile sin archivos huérfanos
-          git add .
-          git commit -m "Fusión Física Forzada de Módulos Gráficos Mali" || true
-
-      - name: 4. Configurar Android NDK para Código Nativo C++
+      - name: 3. Configurar Herramientas de Android SDK y NDK
         uses: android-actions/setup-android@v3
 
-      - name: 5. Otorgar Permisos de Ejecución al Compilador Gradle
+      - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 6. Ejecutar Forja y Compilación del APK Final
+      - name: 5. Ejecutar Forja y Compilación del APK (Modo Depuración)
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: 7. Subir APK Modificado como Artefacto de GitHub
+      - name: 6. Subir APK Fusionado como Artefacto Descargable de GitHub
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-Mali-Vortek-APK
