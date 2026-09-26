@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22.1)
 
-# 🚀 LA LLAVE MAESTRA: Forzamos al NDK a usar la API 27 (Android 8.1) para desbloquear AHardwareBuffer_getFd
+# 🚀 LA LLAVE MAESTRA: Forzamos al NDK a usar la API 29 (Android 10) para desbloquear AHardwareBuffer_getFd
 set(ANDROID_PLATFORM android-29)
 
 project(VortekRenderer)
