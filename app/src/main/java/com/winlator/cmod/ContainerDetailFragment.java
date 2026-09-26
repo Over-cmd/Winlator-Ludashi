@@ -650,6 +650,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         String selectedDriver = sGraphicsDriver.getSelectedItem().toString();
         List<String> sGraphicsItemsList = new ArrayList<>(
                 Arrays.asList(context.getResources().getStringArray(R.array.graphics_driver_entries)));
+        sGraphicsItemsList.add("Vortek (Mali Compatible)");
         ArrayAdapter<String> graphicsDriverAdapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, sGraphicsItemsList);
         graphicsDriverAdapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled);
         sGraphicsDriver.setAdapter(graphicsDriverAdapter);
