@@ -2174,6 +2174,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         File rootDir = imageFs.getRootDir();
 
+        // 🚀 DETECCIÓN E INYECCIÓN FÍSICA DE VORTEK MALI
+        boolean isVortek = adrenoToolsDriverId != null && 
+                           (adrenoToolsDriverId.equals("vortek-2.1.tzst") || adrenoToolsDriverId.contains("vortek"));
+
         if (dxwrapper.contains("dxvk")) {
             DXVKConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
             String version = dxwrapperConfig.get("version");
@@ -2202,15 +2206,30 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     rootDir);
         }
 
-        if (!"System".equals(adrenoToolsDriverId)) {
+        // 🚀 EXTRACCIÓN DINÁMICA DE VORTEK SI ES SELECCIONADO EN EL MENÚ DESPLEGABLE
+        if (isVortek) {
+            Log.d("XServerDisplayActivity", "Fusión Mali: Extrayendo paquete físico vortek-2.1.tzst...");
+            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/vortek-2.1" + ".tzst", rootDir);
+            
+            // Forzamos las variables de entorno de traducción física de Vortek
+            envVars.put("VORTEK_RENDERER", "1");
+            envVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
+        } 
+        // Lógica original de Adrenotools solo si NO es Vortek
+        else if (!"System".equals(adrenoToolsDriverId)) {
             AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
             adrenotoolsManager.setDriverById(envVars, imageFs, adrenoToolsDriverId);
         }
 
+        // 🚨 PREVENCIÓN DE CRASH (Bypass de la lectura de versión Vulkan para Adreno)
         String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
-        String vulkanVersionPatch = GPUInformation.getVulkanVersion(adrenoToolsDriverId, this).split("\\.")[2];
-        vulkanVersion = vulkanVersion + "." + vulkanVersionPatch;
-        envVars.put("WRAPPER_VK_VERSION", vulkanVersion);
+        if (isVortek) {
+            envVars.put("WRAPPER_VK_VERSION", "1.3.0"); // Vulkan base para la api Zink de Vortek
+        } else {
+            String vulkanVersionPatch = GPUInformation.getVulkanVersion(adrenoToolsDriverId, this).split("\\.")[2];
+            vulkanVersion = vulkanVersion + "." + vulkanVersionPatch;
+            envVars.put("WRAPPER_VK_VERSION", vulkanVersion);
+        }
 
         String blacklistedExtensions = graphicsDriverConfig.get("blacklistedExtensions");
         envVars.put("WRAPPER_EXTENSION_BLACKLIST", blacklistedExtensions);
