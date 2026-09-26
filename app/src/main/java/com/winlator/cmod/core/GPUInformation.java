@@ -10,7 +10,7 @@ public abstract class GPUInformation {
     }
 
     public static boolean isDriverSupported(String driverName, Context context) {
-        // 🚀 BYPASS VORTEK MALI: Si el driver es Vortek, saltamos la validación estricta de Adreno
+        // 🚀 BYPASS VORTEK MALI: Si el driver es Vortek, saltamos la validación para que no lo rechace por no ser Adreno
         if (driverName != null && (driverName.equals("vortek-2.1.tzst") || driverName.contains("vortek"))) {
             return true;
         }
@@ -22,7 +22,7 @@ public abstract class GPUInformation {
         return renderer != null && !renderer.toLowerCase().contains("unknown");
     }
 
-    // Devolvemos los métodos nativos a sus declaraciones originales del fork para que JNI enlace a la primera
+    // 🚨 RESTAURACIÓN CRÍTICA JNI: Los nombres nativos vuelven a ser idénticos al C++ original para evitar fallos de Javac
     public native static String getVulkanVersion(String driverName, Context context);
     public native static int getVendorID(String driverName, Context context);
     public native static String getRenderer(String driverName, Context context);
