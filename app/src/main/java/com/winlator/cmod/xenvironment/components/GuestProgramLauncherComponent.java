@@ -280,18 +280,23 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         String renderer = GPUInformation.getRenderer(null, null);
 
-        // 1. Si detecta GPU Mali, inyectamos Vortek y configuramos el entorno gráfico
+        // 1. Si detecta GPU Mali, forzamos la carga del paquete físico de Vortek y sus variables
         if (renderer != null && renderer.contains("Mali")) {
             execEnvVars.put("BOX64_MMAP32", "0");
             
-            // 🚀 INYECCIÓN DE VORTEK MESA / VULKAN MALI
-            Log.d("GuestProgramLauncherComponent", "GPU Mali detectada: Activando renderizador optimizado de Vortek");
-            execEnvVars.put("GALLIUM_DRIVER", "zink");               // Fuerza el uso de Zink sobre Vulkan
-            execEnvVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");   // Sobrescribe el driver por defecto de Mesa
-            execEnvVars.put("VORTEK_RENDERER", "1");                  // Activa el backend físico inyectado de Vortek
+            // 🚀 ASIGNACIÓN E INYECCIÓN DEL CONTROLADOR SUBIDO
+            Log.d("GuestProgramLauncherComponent", "Mali detectada: Configurando entorno gráfico y asignando paquete vortek-2.1");
+            
+            // Forzamos al gestor de drivers de Winlator a apuntar al archivo que subiste
+            execEnvVars.put("CUSTOM_GRAPHICS_DRIVER", "vortek-2.1.tzst"); 
+            
+            // Variables de traducción gráfica para el backend Mesa/Zink
+            execEnvVars.put("GALLIUM_DRIVER", "zink");
+            execEnvVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
+            execEnvVars.put("VORTEK_RENDERER", "1");
         }
 
-        // 2. Control seguro contra nulos para el mapa de memoria
+        // 2. Control seguro contra nulos para evitar cierres (anti-crash)
         String mmap32Val = execEnvVars.get("BOX64_MMAP32");
         if ("1".equals(mmap32Val) && !wineInfo.isArm64EC()) {
             Log.d("GuestProgramLauncherComponent", "Disabling map memory placed");
