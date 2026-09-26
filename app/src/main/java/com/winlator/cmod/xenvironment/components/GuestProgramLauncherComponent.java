@@ -280,23 +280,23 @@ public class GuestProgramLauncherComponent extends EnvironmentComponent {
 
         String renderer = GPUInformation.getRenderer(null, null);
 
-        // 1. Si el dispositivo tiene una GPU Mali, inyectamos Vortek y corregimos las variables
+        // 1. Si el hardware real reporta una GPU Mali (Exynos, MediaTek, Tensor, etc.)
         if (renderer != null && renderer.contains("Mali")) {
-            // Forzamos al emulador a usar el paquete gráfico de Vortek que subiste a assets
+            // Forzamos la descompresión del paquete físico subido a assets/graphics_driver
             execEnvVars.put("CUSTOM_GRAPHICS_DRIVER", "vortek-2.1.tzst"); 
             
-            // 🚨 SOBREESCRITURA DE SEGURIDAD: Cambiamos el "1" del JSON a "0" para evitar fallos de memoria
+            // 🚨 ANULACIÓN CRÍTICA: Forzamos BOX64_MMAP32 en "0" ignorando el "1" por defecto del JSON
             execEnvVars.put("BOX64_MMAP32", "0");
             
-            // Activamos las variables nativas del backend Mesa/Zink optimizadas por Vortek
+            // Forzado y mapeo estructural de Mesa/Zink modificado por Vortek
             execEnvVars.put("GALLIUM_DRIVER", "zink");
             execEnvVars.put("MESA_LOADER_DRIVER_OVERRIDE", "zink");
             execEnvVars.put("VORTEK_RENDERER", "1");
             
-            Log.d("GuestProgramLauncherComponent", "Mali detectada: Configuración de Vortek 2.1 inyectada con éxito y MMAP32 desactivado.");
+            Log.d("GuestProgramLauncherComponent", "Mali Detectada: Configuración híbrida Vortek 2.1 inyectada con éxito.");
         }
 
-        // 2. Control seguro contra nulos (Mantiene la lógica original de Winlator sin provocar cierres)
+        // 2. Control seguro de lectura contra Nulos (Mantiene la compatibilidad original de la base)
         String mmap32Val = execEnvVars.get("BOX64_MMAP32");
         if ("1".equals(mmap32Val) && !wineInfo.isArm64EC()) {
             Log.d("GuestProgramLauncherComponent", "Disabling map memory placed");
