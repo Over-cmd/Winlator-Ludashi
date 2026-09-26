@@ -32,11 +32,12 @@ target_compile_options(vortekrenderer PRIVATE
     -Wno-incompatible-pointer-types-discards-qualifiers
 )
 
-# 🚀 ENLACE HERMÉTICO: Quitamos el ignore-all para obligar a un ensamblaje real y libre de punteros nulos mortales
+# 🚀 APAGAFUEGOS DEL LINKER: Forzamos la vinculación del buffer de hardware nativo de Android de manera directa y prioritaria
+target_link_options(vortekrenderer PRIVATE "-lnativewindow")
+
 target_link_libraries(vortekrenderer
                       adrenotools
                       winlator
                       log
-                      android  # 🚀 Asegura el acceso a las APIs básicas del sistema
-                      nativewindow # 🚀 SOLUCIÓN SUPREMA: Vincula físicamente el soporte de Hardware Buffers del Kernel de Android
-)
+                      android
+                      nativewindow)
