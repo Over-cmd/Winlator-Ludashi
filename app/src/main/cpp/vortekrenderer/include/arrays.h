@@ -63,7 +63,6 @@ extern void* ArrayList_removeAt(ArrayList* arrayList, int index);
 extern void ArrayList_remove(ArrayList* arrayList, void* element);
 extern void ArrayList_free(ArrayList* arrayList, bool freeValues);
 extern ArrayList* ArrayList_fromStrings(const char** strings, int size);
-extern int ArrayList_containsString(ArrayList* arrayList, const char* string);
 
 typedef struct ArrayMap_Entry {
     char* key;
@@ -95,7 +94,6 @@ typedef struct SparseArray {
 } SparseArray;
 
 extern int SparseArray_indexOfKey(SparseArray* sparseArray, int key);
-extern int SparseArray_indexOfValue(SparseArray* sparseArray, void* value);
 extern void SparseArray_put(SparseArray* sparseArray, int key, void* value);
 extern void* SparseArray_get(SparseArray* sparseArray, int key);
 extern void* SparseArray_removeAt(SparseArray* sparseArray, int index);
