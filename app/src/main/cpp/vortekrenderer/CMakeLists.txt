@@ -36,11 +36,12 @@ target_compile_options(vortekrenderer PRIVATE
 )
 
 # 🚀 ESCUDO INDESTRUCTIBLE DEL LINKER: Forzamos la carga prioritaria de nativewindow y android con flags de enlace de bajo nivel (-Wl)
-# También forzamos la degradación de símbolos no definidos a nivel de enlazador para este módulo gráfico específico
+# También anulamos el bloqueo estricto de "--no-undefined" permitiendo que la firma de AHardwareBuffer se resuelva en el móvil
 target_link_options(vortekrenderer PRIVATE 
     "-Wl,-lnativewindow" 
     "-Wl,-landroid"
     "-Wl,--allow-shlib-undefined"
+    "-Wl,--unresolved-symbols=ignore-in-shared-libs"
 )
 
 target_link_libraries(vortekrenderer
