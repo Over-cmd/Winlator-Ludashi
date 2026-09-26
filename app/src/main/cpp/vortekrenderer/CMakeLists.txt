@@ -22,7 +22,9 @@ add_library(vortekrenderer SHARED
             src/shader_inspector.c
             src/async_pipeline_creator.c
             src/timeline_semaphore.c
-            src/arrays.c)
+            src/arrays.c
+            src/ring_buffer.c         
+            src/sysvshared_memory.c)
 
 # 🛡️ ASEGURAMIENTO DEL TARGET: Nos aseguramos de que el compilador ignore las alertas de forma estricta en este módulo
 target_compile_options(vortekrenderer PRIVATE 
