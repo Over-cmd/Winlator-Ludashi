@@ -1099,24 +1099,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
-        // ... Mantenemos los parches limpios de la interfaz gráfica que pusimos antes ...
-
-        // 🚀 PUENTE DE AUDIO INDESTRUCTIBLE MALI-PULSE:
-        // Como las libs v13.0 sufren underruns severos en chips Mali, usamos el inyector del entorno
-        // para calibrar el demonio de PulseAudio. Forzamos hilos planos independientes y un búfer
-        // extendido (80ms). Esto estabiliza el jitter acústico y detiene las repeticiones de golpe.
-        if (container != null) {
-            String existingEnv = container.getEnvVars() != null ? container.getEnvVars() : "";
-            
-            // Inyectamos las banderas de control acústico directamente al entorno base de Linux
-            container.setTag(existingEnv + 
-                "PULSE_LATENCY_MSEC=80;" + 
-                "PULSE_BUFFER_SIZE=65536;" + 
-                "BOX64_DYNAREC_SOUND=1;" +
-                "ALSOFT_LOGLEVEL=0;");
-        }
-
-        // --- El resto del código original de tu método setupUI() continúa idéntico hacia abajo ---
 
         // 🚀 ESCUDO DE PROTECCIÓN GRÁFICA MALI-VORTEK:
         // Si el contenedor corre bajo Vortek, obligamos al Canvas de Java a pausarse y purgar la superficie previa.
