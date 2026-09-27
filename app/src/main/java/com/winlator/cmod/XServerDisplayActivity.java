@@ -1099,6 +1099,24 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
+        // 🚀 ESCUDO DE PROTECCIÓN GRÁFICA MALI-VORTEK:
+        // Si el contenedor corre bajo Vortek, obligamos al Canvas de Java a pausarse y purgar la superficie previa.
+        // Esto evita que libEGL colapse con el error de 'disconnect failed' en tu pantalla.
+        if (container != null && container.getGraphicsDriver() != null && 
+            container.getGraphicsDriver().contains("vortek")) {
+            Log.d("XServerDisplayActivity", "Vortek Mali detectado en setupUI: Aplicando purga síncrona.");
+            try {
+                if (xServerView != null && xServerView.getHolder() != null) {
+                    xServerView.getHolder().getSurface().release(); // Liberamos el puntero nativo retenido por Java
+                }
+                Thread.sleep(100); // Margen de seguridad físico para la GPU Mali (100 milisegundos)
+            } catch (Exception e) {
+                Log.e("XServerDisplayActivity", "Error en el bypass de superficie de Vortek", e);
+            }
+        }
+
+        // --- Todo el resto del código original de tu método setupUI() continúa idéntico hacia abajo ---
+            
         FrameLayout rootView = findViewById(R.id.FLXServerDisplay);
         xServerView = new XServerView(this, xServer);
         final VulkanRenderer renderer = xServerView.getRenderer();
