@@ -1102,11 +1102,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
         // ... Mantenemos el bypass de gráficos para Vortek/Mali que pusimos antes ...
 
         // 🚀 PARCHE MAESTRO DE AUDIO LUDASHI-MALI:
-        // Forzamos al backend de audio a utilizar una latencia calculada estable (60ms)
+        // Forzamos al backend de audio a utilizar una latencia calculada estable (80ms)
         // y le ordenamos al emulador coordinar los hilos de sonido dinámicos (Box64 Dynarec Sound).
         // Esto elimina por completo las repeticiones y los tirones en PulseAudio de forma nativa.
         if (container != null) {
-            container.putEnvVar("PULSE_LATENCY_MSEC", "60");
+            container.putEnvVar("PULSE_LATENCY_MSEC", "80");
             container.putEnvVar("BOX64_DYNAREC_SOUND", "1");
             container.putEnvVar("ALSOFT_LOGLEVEL", "0");
         }
