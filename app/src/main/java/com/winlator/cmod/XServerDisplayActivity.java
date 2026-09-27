@@ -1099,22 +1099,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
-        // ... Mantenemos los parches limpios de la interfaz gráfica de Vortek/Mali que pusimos antes ...
-
-        // 🚀 REPARACIÓN ABSOLUTA DE AUDIO LUDASHI-MALI:
-        // Como tu clase Container no usa setEnvVar, inyectamos las variables de sonido de PulseAudio y ALSA
-        // directamente en las propiedades del sistema de ejecución de comandos (System.setProperty) de Android.
-        // El hilo nativo de Wine leerá estas directivas en el arranque, estabilizando el búfer a 100ms
-        // y eliminando por completo las repeticiones y el sonido a trozos de fábrica.
-        try {
-            System.setProperty("PULSE_LATENCY_MSEC", "100");
-            System.setProperty("BOX64_DYNAREC_SOUND", "1");
-            System.setProperty("ALSOFT_LOGLEVEL", "0");
-        } catch (Exception e) {
-            Log.e("XServerDisplayActivity", "Error al inyectar el parche de audio de bajo nivel", e);
-        }
-
-        // --- El resto del código original de tu método setupUI() continúa idéntico hacia abajo ---
 
         // 🚀 ESCUDO DE PROTECCIÓN GRÁFICA MALI-VORTEK:
         // Si el contenedor corre bajo Vortek, obligamos al Canvas de Java a pausarse y purgar la superficie previa.
