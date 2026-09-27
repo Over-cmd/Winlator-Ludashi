@@ -1099,16 +1099,6 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
-        // ... Mantenemos el bypass de gráficos para Vortek/Mali que pusimos antes ...
-
-        // 🚀 PARCHE DE AUDIO CORREGIDO: Usamos el método setEnvVar compatible con tu estructura
-        if (container != null) {
-            container.setEnvVar("PULSE_LATENCY_MSEC", "80");
-            container.setEnvVar("BOX64_DYNAREC_SOUND", "1");
-            container.setEnvVar("ALSOFT_LOGLEVEL", "0");
-        }
-
-        // --- El resto del código original de tu método setupUI() continúa idéntico hacia abajo ---
 
         // 🚀 ESCUDO DE PROTECCIÓN GRÁFICA MALI-VORTEK:
         // Si el contenedor corre bajo Vortek, obligamos al Canvas de Java a pausarse y purgar la superficie previa.
