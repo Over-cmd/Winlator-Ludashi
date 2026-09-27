@@ -137,6 +137,21 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
     }
 
     private String[] queryAvailableExtensions(String driver, Context context) {
+        // 🚀 BYPASS DE EXTENSIONES MALI-VORTEK: Si el driver seleccionado es Vortek,
+        // interceptamos la llamada antes de que toque C++ para evitar el colapso de la interfaz (DecorView).
+        // Le devolvemos a Java una lista de extensiones estándar segura.
+        if (driver != null && (driver.contains("vortek") || driver.toLowerCase().contains("mali"))) {
+            Log.d(TAG, "Vortek Mali detectado en extensiones: Aplicando bypass de diálogo seguro.");
+            return new String[]{
+                "VK_KHR_swapchain",
+                "VK_KHR_destroy_surface",
+                "VK_KHR_external_memory",
+                "VK_KHR_external_semaphore",
+                "VK_KHR_external_fence"
+            };
+        }
+
+        // --- Código original de tu fork para drivers Adreno ---
         return GPUInformation.enumerateExtensions(driver, context);
     }
   
