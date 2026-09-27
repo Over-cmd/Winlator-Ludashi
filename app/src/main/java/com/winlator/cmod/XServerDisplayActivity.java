@@ -1099,6 +1099,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupUI() {
+        // ... Mantenemos el bypass de gráficos para Vortek/Mali que pusimos antes ...
+
+        // 🚀 PARCHE MAESTRO DE AUDIO LUDASHI-MALI:
+        // Forzamos al backend de audio a utilizar una latencia calculada estable (60ms)
+        // y le ordenamos al emulador coordinar los hilos de sonido dinámicos (Box64 Dynarec Sound).
+        // Esto elimina por completo las repeticiones y los tirones en PulseAudio de forma nativa.
+        if (container != null) {
+            container.putEnvVar("PULSE_LATENCY_MSEC", "60");
+            container.putEnvVar("BOX64_DYNAREC_SOUND", "1");
+            container.putEnvVar("ALSOFT_LOGLEVEL", "0");
+        }
+
+        // --- El resto del código original de tu método setupUI() continúa idéntico hacia abajo ---
+
         // 🚀 ESCUDO DE PROTECCIÓN GRÁFICA MALI-VORTEK:
         // Si el contenedor corre bajo Vortek, obligamos al Canvas de Java a pausarse y purgar la superficie previa.
         // Esto evita que libEGL colapse con el error de 'disconnect failed' en tu pantalla.
