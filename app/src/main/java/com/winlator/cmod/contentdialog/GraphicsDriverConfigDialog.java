@@ -210,6 +210,18 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedVersion = sVersion.getSelectedItem().toString();
+
+                // 🚀 FRENO SUPREMO ANTI-BUCLE MALI-VORTEK:
+                // Si el driver seleccionado contiene "vortek", fijamos una lista visual plana
+                // y cortamos la ejecución (return) para que el layout de Android no explote.
+                if (selectedVersion != null && (selectedVersion.contains("vortek") || selectedVersion.toLowerCase().contains("mali"))) {
+                    Log.d(TAG, "Vortek seleccionado en el Spinner: Aplicando interfaz plana segura.");
+                    String[] defaultExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
+                    mscAvailableExtensions.setItems(defaultExtensions, "Extensions");
+                    mscAvailableExtensions.setSelectedItems(defaultExtensions);
+                    return; // 🌟 ¡JAQUE MATE! Detenemos la recursividad que congelaba el DecorView
+                }
+
                 String[] availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
                 String blacklistedExtensions = "";
 
