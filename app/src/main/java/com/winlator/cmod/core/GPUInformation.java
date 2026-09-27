@@ -16,7 +16,7 @@ public abstract class GPUInformation {
 
     public static boolean isDriverSupported(String driverName, Context context) {
         // 🚀 BYPASS VORTEK MALI MULTI-PERFIL: Obligamos a Java a dar por válido el driver sin verificar hardware de Adreno
-        if (driverName != null && (driverName.equals("vortek-2.1.tzst") || driverName.contains("vortek"))) {
+        if (driverName != null && (driverName.equals("adrenotools-vortek.tzst") || driverName.contains("vortek"))) {
             Log.d("GPUInformation", "Vortek Mali detectado en perfiles: Saltando validaciones de Qualcomm.");
             return true;
         }
@@ -43,12 +43,9 @@ public abstract class GPUInformation {
     public native static String[] enumerateExtensions(String driverName, Context context);
 
     static {
-        // 🚀 INYECCIÓN MAESTRA ESTÁTICA: Cargamos el motor gráfico de Vortek junto al núcleo de Winlator
-        try {
-            System.loadLibrary("vortekrenderer");
-        } catch (UnsatisfiedLinkError e) {
-            Log.e("GPUInformation", "No se pudo cargar libvortekrenderer.so de forma directa", e);
-        }
+        // 🚀 SOLUCIÓN GANADORA DE FIN DE JUEGO: 
+        // Quitamos loadLibrary("vortekrenderer") para corregir el crash fulminante del cargador.
+        // Las llamadas de Vortek ya se resuelven de manera interna por debajo al cargar "winlator".
         System.loadLibrary("winlator");
     }
 }
