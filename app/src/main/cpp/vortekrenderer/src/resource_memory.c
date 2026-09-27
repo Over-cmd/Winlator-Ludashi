@@ -4,8 +4,9 @@
 #include "dma_utils.h"
 #include <unistd.h>
 #include <dlfcn.h>
-#include <sys/mman.h>  // 🚀 CRÍTICO: Necesario para usar memfd_create y crear un FD real en memoria
+#include <sys/mman.h>  
 #include <fcntl.h>
+#include <sys/syscall.h> // 🚀 CRÍTICO: Necesario para usar la tabla de interrupciones genéricas de Linux
 
 // Para poder usar la función nativa de Android de mapeo de descriptores
 #include <android/hardware_buffer.h>
@@ -38,12 +39,16 @@ int AHardwareBuffer_getFd(AHardwareBuffer* hardwareBuffer) {
         dlclose(handle);
     }
 
-    // 🚀 BYPASS DE FIN DE JUEGO: Si falla la carga del sistema o es una versión antigua,
-    // creamos un descriptor de archivo anónimo real en la RAM (memfd) para la GPU Mali.
-    // Esto evita usar dup(0), eliminando por completo los crasheos de libEGL en la pantalla.
-    int fake_fd = memfd_create("vortek_mali_shm", MFD_CLOEXEC);
+    // 🚀 BYPASS DE BAJO NIVEL INDESTRUCTIBLE:
+    // Si falla la carga (teléfonos antiguos), creamos el descriptor anónimo saltándonos la cabecera del NDK.
+    // Usamos el número de syscall nativo del Kernel (0 en flags equivale a comportamiento estándar).
+    int fake_fd = -1;
+#ifdef __NR_memfd_create
+    fake_fd = syscall(__NR_memfd_create, "vortek_mali_shm", 0x0001U); // 0x0001U equivale a MFD_CLOEXEC nativo
+#endif
+
     if (fake_fd < 0) {
-        // Si el kernel no soporta memfd, abrimos un canal fantasma nulo estándar de Unix
+        // Si el kernel del teléfono es muy antiguo y no tiene memfd, abrimos un canal fantasma seguro de Unix
         fake_fd = open("/dev/null", O_RDWR | O_CLOEXEC);
     }
     return fake_fd;
