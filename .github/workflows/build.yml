@@ -29,6 +29,39 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
+      - name: 🚀 4.5. Clonar y Compilar PulseAudio Nativo Moderno (Mesa-Mali Patch)
+        run: |
+          echo "🔊 Iniciando clonación del servidor de sonido..."
+          URL_PULSE="https://github.com"
+          URL_PULSE="${URL_PULSE}/brunodev85"
+          URL_PULSE="${URL_PULSE}/pulseaudio-android.git"
+          
+          git clone $URL_PULSE pulseaudio_src
+          cd pulseaudio_src
+          
+          # 🛠️ SETUP NDK AUTOMÁTICO
+          export ANDROID_NDK_HOME=$ANDROID_NDK_LATEST_HOME
+          export PATH=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH
+          
+          chmod +x build.sh main-build.sh
+          
+          echo "🛠️ Compilando código fuente de PulseAudio..."
+          ./build.sh arm64-v8a
+          
+          echo "📦 Inyectando binarios modernos..."
+          mkdir -p ../app/src/main/jniLibs/arm64-v8a
+          cp -f build/arm64-v8a/lib/libpulse.so ../app/src/main/jniLibs/arm64-v8a/
+          cp -f build/arm64-v8a/lib/libpulseaudio.so ../app/src/main/jniLibs/arm64-v8a/
+          cp -f build/arm64-v8a/lib/libsndfile.so ../app/src/main/jniLibs/arm64-v8a/
+          cp -f build/arm64-v8a/lib/libltdl.so ../app/src/main/jniLibs/arm64-v8a/
+          
+          # Renombrado de camuflaje para el Linker de Winlator
+          find build/arm64-v8a/lib/pulseaudio/ -name "libpulsecommon-*.so" -exec cp -f {} ../app/src/main/jniLibs/arm64-v8a/libpulsecommon-13.0.so \;
+          find build/arm64-v8a/lib/pulseaudio/ -name "libpulsecore-*.so" -exec cp -f {} ../app/src/main/jniLibs/arm64-v8a/libpulsecore-13.0.so \;
+          
+          cd ..
+          echo "🌟 ¡Inyección completada!"
+
       - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
         # 🚀 JAQUE MATE AL LINKER: Forzamos flags globales de enlace para anular los --no-undefined del proyecto base
         run: |
