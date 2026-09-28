@@ -349,6 +349,11 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     buf, pixmap.width, pixmap.height, stride, rx, ry);
             }
         }
+        
+        // 🚀 CONTROL DE AMORTIGUACIÓN MALI (DIRECTO):
+        // Cedemos 1 milisegundo al planificador de Android para que el hilo de sonido 
+        // pueda vaciar el búfer de PulseAudio de inmediato sin que el vídeo lo pise.
+        try { Thread.sleep(1); } catch (InterruptedException ignored) {}
     }
 
     @Override
@@ -386,6 +391,10 @@ public class VulkanRenderer implements WindowManager.OnWindowModificationListene
                     buf, drawable.width, drawable.height, stride, rx, ry);
             }
         }
+        
+        // 🚀 CONTROL DE AMORTIGUACIÓN MALI (ESTÁNDAR):
+        // Evitamos que las ráfagas continuas de refresco asfixien el backend de audio.
+        try { Thread.sleep(1); } catch (InterruptedException ignored) {}
     }
 
     @Override
