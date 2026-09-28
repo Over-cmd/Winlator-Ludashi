@@ -104,13 +104,23 @@ static void preload_vendor_icd_deps() {
 }
 
 static void init_original_vulkan() {
+    // 🚀 ACOPLE MULTIMEDIA MALI (MODO WRAPPER SYSTEM):
+    // Forzamos al cargador dinámico del Kernel a inyectar libXlorie.so de forma global
+    // antes de mapear el controlador Vulkan original de Android.
+    dlopen("libXlorie.so", RTLD_GLOBAL | RTLD_NOW);
+
     vulkan_handle = dlopen("/system/lib64/libvulkan.so", RTLD_LOCAL | RTLD_NOW);
 }
 
-static void init_vulkan(JNIEnv  *env, jobject context, const char *driver_name) {
-    char *tmpdir;
-    char *library_name;
-    char *native_library_dir;
+static void init_vulkan(JNIEnv *env, jobject context, const char *driver_name) {
+    // 🚀 ACOPLE MULTIMEDIA MALI (MODO WRAPPER CUSTOM DRIVER):
+    // Repetimos la inyección aquí para asegurar el amarre de los relojes de audio y vídeo
+    // si el contenedor levanta usando drivers de la carpeta de perfiles en tu GPU Mali.
+    dlopen("libXlorie.so", RTLD_GLOBAL | RTLD_NOW);
+
+    char *tmpdir = NULL;
+    char *library_name = NULL;
+    char *native_library_dir = NULL;
     preload_vendor_icd_deps();
     const char *driver_path = get_driver_path(env, context, driver_name);
 
