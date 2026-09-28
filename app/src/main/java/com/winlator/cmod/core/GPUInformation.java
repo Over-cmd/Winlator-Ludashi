@@ -46,14 +46,9 @@ public abstract class GPUInformation {
     public native static String[] enumerateExtensions(String driverName, Context context);
 
     static {
-        // 🚀 INYECCIÓN MULTIMEDIA MALI: Cargamos el sincronizador libXlorie.so de Alexvorxx
-        // Esto activa el reloj unificado que amarra los hilos de audio y vídeo de fábrica.
-        try {
-            System.loadLibrary("Xlorie");
-        } catch (UnsatisfiedLinkError e) {
-            Log.e("GPUInformation", "No se pudo cargar libXlorie.so en este dispositivo", e);
-        }
-        
+        // 🚀 REPARACIÓN DE FIN DE JUEGO: Borramos por completo el loadLibrary("Xlorie")
+        // que hacía estallar el diálogo del botón (+). libXlorie.so se acopla de forma
+        // automática en C++ por dependencias, no desde el cargador JNI de Java.
         System.loadLibrary("winlator");
     }
 }
