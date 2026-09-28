@@ -161,6 +161,17 @@ void VulkanRendererContext::loadDeviceDispatch() {
 }
 
 void VulkanRendererContext::createInstance() {
+    // 🚀 ACOPLE MULTIMEDIA MAESTRO MALI (MODO WRAPPER):
+    // Forzamos al Kernel de Android a inyectar libXlorie.so justo antes de levantar
+    // la instancia Vulkan del contenedor. Esto amarra los hilos de audio y vídeo
+    // de PulseAudio en tu chip Mali de forma transparente sin crashear el menú principal.
+    void* xlorie_handle = dlopen("libXlorie.so", RTLD_NOW | RTLD_GLOBAL);
+    if (xlorie_handle) {
+        RLOG("🚀 ¡ÉXITO! libXlorie.so acoplada perfectamente al reloj del Renderizador.");
+    } else {
+        RLOG("Advertencia: No se pudo enlazar libXlorie.so de forma dinámica.");
+    }
+
     RLOG("createInstance: adrenotoolsHandle=%p (custom driver %s)",
         adrenotoolsHandle, adrenotoolsHandle?"ACTIVE":"NOT SET - using stock driver");
 
