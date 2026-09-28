@@ -394,20 +394,29 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
 
         loadGPUNameSpinner(context, sGPUName);
 
-        // Use the custom selection logic
-        setSpinnerSelectionWithFallback(sVersion, initialVersion, graphicsDriver);
-        AppUtils.setSpinnerSelectionFromValue(sVulkanVersion, vulkanVersion);
-        AppUtils.setSpinnerSelectionFromValue(sGPUName, gpuName);
-        AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, maxDeviceMemory);
-        AppUtils.setSpinnerSelectionFromValue(sPresentMode, presentMode);
-        AppUtils.setSpinnerSelectionFromValue(sResourceType, selectedResourceType);
-        AppUtils.setSpinnerSelectionFromValue(sBCnEmulation, bcnEmulation);
-        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationType, bcnEmulationType);
-        AppUtils.setSpinnerSelectionFromValue(sBCnEmulationCache, bcnEmulationCache);
+        // 🛡️ ESCUDO INDESTRUCTIBLE DE INTERFAZ MALI:
+        // Envolvemos el rellenado masivo de los adaptadores en un try-catch global.
+        // Si el Spinner recibe un valor inesperado o corrupto por los drivers de Qualcomm,
+        // Java asimila el impacto de forma silenciosa y no destruye la MainActivity.
+        try {
+            setSpinnerSelectionWithFallback(sVersion, initialVersion, graphicsDriver);
+            AppUtils.setSpinnerSelectionFromValue(sVulkanVersion, vulkanVersion);
+            AppUtils.setSpinnerSelectionFromValue(sGPUName, gpuName);
+            AppUtils.setSpinnerSelectionFromNumber(sMaxDeviceMemory, maxDeviceMemory);
+            AppUtils.setSpinnerSelectionFromValue(sPresentMode, presentMode);
+            AppUtils.setSpinnerSelectionFromValue(sResourceType, selectedResourceType);
+            AppUtils.setSpinnerSelectionFromValue(sBCnEmulation, bcnEmulation);
+            AppUtils.setSpinnerSelectionFromValue(sBCnEmulationType, bcnEmulationType);
+            AppUtils.setSpinnerSelectionFromValue(sBCnEmulationCache, bcnEmulationCache);
+        } catch (Exception e) {
+            Log.e(TAG, "Error controlado al rellenar los componentes del cuadro de diálogo", e);
+        }
 
         // We can log the spinner values now
-        Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());
-        Log.d(TAG, "Spinner selected value: " + sVersion.getSelectedItem());
+        try {
+            Log.d(TAG, "Spinner selected position: " + sVersion.getSelectedItemPosition());
+            Log.d(TAG, "Spinner selected value: " + sVersion.getSelectedItem());
+        } catch (Exception e) {}
     }
 
     private void setSpinnerSelectionWithFallback(Spinner spinner, String version, String graphicsDriver) {
