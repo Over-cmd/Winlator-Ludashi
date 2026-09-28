@@ -12,6 +12,7 @@
 #include <sys/syscall.h>
 #include <jni.h>
 #include <android/log.h>
+#include <android/sharedmem.h> // 🚀 CRÍTICO: Necesario para la API ASharedMemory en Android moderno
 
 #define __u32 uint32_t
 #include <linux/ashmem.h>
@@ -19,6 +20,16 @@
 #define printf(...) __android_log_print(ANDROID_LOG_DEBUG, "System.out", __VA_ARGS__);
 
 static int ashmemCreateRegion(const char* name, int64_t size) {
+    // 🚀 EL SECRETO ACÚSTICO DE ALEXVORXX PARA MALI:
+    // Si el teléfono corre con Android 8.0+ (API 26), usamos la memoria compartida por hardware nativa.
+    // Esto evita el nodo obsoleto /dev/ashmem (bloqueado por Google en Android 11+), permitiendo que Wine
+    // y PulseAudio escriban y lean datos en el mismo bloque físico de la RAM instantáneamente y sin retrasos.
+#if __ANDROID_API__ >= 26
+    int fd = ASharedMemory_create(name, size);
+    if (fd < 0) return -1;
+    return fd;
+#else
+    // Plan de emergencia plano solo para teléfonos muy antiguos
     int fd = open("/dev/ashmem", O_RDWR);
     if (fd < 0) return -1;
 
@@ -33,9 +44,10 @@ static int ashmemCreateRegion(const char* name, int64_t size) {
     if (ret < 0) goto error;
 
     return fd;
-    error:
+error:
     close(fd);
     return -1;
+#endif
 }
 
 static int memfd_create(const char *name, unsigned int flags) {
