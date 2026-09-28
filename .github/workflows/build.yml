@@ -39,8 +39,9 @@ jobs:
           URL_BASE="${URL_BASE}/winlator/raw/main"
           URL_BASE="${URL_BASE}/app/src/main/assets/imagefs.txz"
           
-          # Descargamos el archivo pesado y lo camuflamos con el nombre que espera tu Java
-          curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_BASE"
+          # Guardamos el archivo con su nombre legítimo de sistema de archivos (imagefs.txz)
+          mkdir -p app/src/main/assets
+          curl -L -o app/src/main/assets/imagefs.txz "$URL_BASE"
           
           echo "🌟 ¡El archivo pesado se ha descargado e inyectado con éxito en tus assets virtuales!"
 
