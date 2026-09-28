@@ -55,6 +55,16 @@ public class ALSARequestHandler implements RequestHandler {
                     alsaClient.writeDataToStream(buffer);
                 }
                 else {
+                    // 🚀 AMORTIGUACIÓN ANTI-RASCADO MALI:
+                    // Si los datos del frame de vídeo retrasaron el stream de audio,
+                    // damos un micro-descanso de espera pasiva para que el buffer se llene
+                    // en lugar de abortar la conexión con un 'false' inmediato.
+                    int retryCount = 0;
+                    while (inputStream.available() < requestLength && retryCount < 10) {
+                        try { Thread.sleep(1); } catch (InterruptedException ignored) {}
+                        retryCount++;
+                    }
+                    
                     if (inputStream.available() < requestLength) return false;
                     alsaClient.writeDataToStream(inputStream.readByteBuffer(requestLength));
                 }
