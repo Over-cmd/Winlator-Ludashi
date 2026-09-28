@@ -211,30 +211,31 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 selectedVersion = sVersion.getSelectedItem().toString();
 
-                // 🚀 FRENO SUPREMO ANTI-BUCLE MALI-VORTEK:
-                // Si el driver seleccionado contiene "vortek", fijamos una lista visual plana
-                // y cortamos la ejecución (return) para que el layout de Android no explote.
+                // 🚀 ESCUDO MALI-VORTEK INTEGRADO SIN EXCEPCIONES:
+                // Si el controlador es Vortek o Mali, inyectamos las extensiones planas directas
+                // y saltamos el bucle conflictivo de Qualcomm de forma segura sin romper variables.
                 if (selectedVersion != null && (selectedVersion.contains("vortek") || selectedVersion.toLowerCase().contains("mali"))) {
-                    Log.d(TAG, "Vortek seleccionado en el Spinner: Aplicando interfaz plana segura.");
+                    Log.d(TAG, "Vortek seleccionado en el Spinner: Cargando perfiles unificados.");
                     String[] defaultExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
                     mscAvailableExtensions.setItems(defaultExtensions, "Extensions");
                     mscAvailableExtensions.setSelectedItems(defaultExtensions);
-                    return; // 🌟 ¡JAQUE MATE! Detenemos la recursividad que congelaba el DecorView
-                }
+                    blacklistedExtensions = ""; // Inicialización segura
+                } else {
+                    // --- Flujo normal estándar para controladores Adreno de Qualcomm ---
+                    String[] availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
+                    mscAvailableExtensions.setItems(availableExtensions, "Extensions");
+                    mscAvailableExtensions.setSelectedItems(availableExtensions);
 
-                String[] availableExtensions = queryAvailableExtensions(selectedVersion, anchor.getContext());
-                String blacklistedExtensions = "";
+                    if (selectedVersion.equals(initialVersion)) {
+                        blacklistedExtensions = blExtensions;
+                    } else {
+                        blacklistedExtensions = "";
+                    }
 
-                mscAvailableExtensions.setItems(availableExtensions, "Extensions");
-                mscAvailableExtensions.setSelectedItems(availableExtensions);
-
-                if(selectedVersion.equals(initialVersion))
-                    blacklistedExtensions = blExtensions;
-
-                String[] bl = blacklistedExtensions.split("\\,");
-
-                for (String extension : bl) {
-                    mscAvailableExtensions.unsetSelectedItem(extension);
+                    String[] bl = blacklistedExtensions.split("\\,");
+                    for (String extension : bl) {
+                        mscAvailableExtensions.unsetSelectedItem(extension);
+                    }
                 }
             }
 
