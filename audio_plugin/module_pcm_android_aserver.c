@@ -216,11 +216,11 @@ static snd_pcm_sframes_t android_aserver_transfer(snd_pcm_ioplug_t* io, const sn
     int request_length = size * android_aserver->frame_bytes;
 
     if (android_aserver->use_shm) {
-        // MODO SEGMENTO COMPARTIDO: Estructura plana estándar de alta velocidad
+        // 🛡️ MODO SHM DE FÁBRICA: Restauramos la lógica original limpia para evitar
+        // desbordamientos de memoria mapeada y bloqueos en el arranque del juego.
         char request_data[MIN_REQUEST_LENGTH];
         request_data[0] = REQUEST_CODE_WRITE;
         memcpy(request_data + 1, &request_length, 4);
-        memcpy(android_aserver->buffer, data, request_length);
         int res = write(android_aserver->fd, &request_data, MIN_REQUEST_LENGTH);
         if (res < 0) return 0;
     }
