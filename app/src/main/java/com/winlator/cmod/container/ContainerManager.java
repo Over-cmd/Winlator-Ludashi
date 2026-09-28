@@ -257,7 +257,13 @@ public class ContainerManager {
     public boolean extractContainerPatternFile(Container container, String wineVersion, ContentsManager contentsManager, File containerDir, OnExtractFileListener onExtractFileListener) {
         WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
         if (wineInfo.path == null || wineInfo.path.isEmpty()) return false;
-        String containerPattern = wineVersion + "_container_pattern.tzst";
+
+        // 🚀 REDIRECCIÓN SUPREMA DE FUSIÓN:
+        // En lugar de buscar plantillas dinámicas por versión de Wine que no existen en el disco unificado,
+        // forzamos a Java a leer estrictamente "container_pattern_common.tzst".
+        // Esto se acopla milimétricamente con la descarga por curl de las Actions y activa el motor Glibc de Alexvorxx.
+        String containerPattern = "container_pattern_common.tzst";
+        
         boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, containerPattern, containerDir, onExtractFileListener);
 
         if (!result) {
