@@ -13,8 +13,8 @@
 #include <android/log.h>
 #include <pthread.h>
 
-#include "winlator.h"
-#include "jni_utils.h"
+#include "../vortekrenderer/include/winlator.h"
+#include "../vortekrenderer/include/jni_utils.h"
 
 #define MAX_EVENTS 10
 
