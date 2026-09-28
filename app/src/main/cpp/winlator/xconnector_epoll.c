@@ -62,7 +62,9 @@ Java_com_winlator_cmod_xconnector_XConnectorEpoll_doEpollIndefinitely(JNIEnv *en
     jmethodID handleNewConnection = (*env)->GetMethodID(env, cls, "handleNewConnection", "(I)V");
     jmethodID handleExistingConnection = (*env)->GetMethodID(env, cls, "handleExistingConnection", "(I)V");
 
-    int numFds = epoll_wait(epollFd, events, MAX_EVENTS, -1);
+    // 🚀 MEJORA CRÍTICA MALI-AUDIO: Cambiamos -1 (espera infinita) por 1ms para que el bucle
+    // no se congele y despache los paquetes de PulseAudio de inmediato sin acumular lag.
+    int numFds = epoll_wait(epollFd, events, MAX_EVENTS, 1);
     for (int i = 0; i < numFds; i++) {
         if (events[i].data.fd == serverFd) {
             int clientFd = accept(serverFd, NULL, NULL);
@@ -70,7 +72,9 @@ Java_com_winlator_cmod_xconnector_XConnectorEpoll_doEpollIndefinitely(JNIEnv *en
                 if (addClientToEpoll) {
                     struct epoll_event event;
                     event.data.fd = clientFd;
-                    event.events = EPOLLIN;
+                    // 🛡️ Activamos EPOLLET (Edge-Triggered) para evitar que el renderizado de vídeo
+                    // sature el socket e interrumpa el hilo continuo del audio de las intros.
+                    event.events = EPOLLIN | EPOLLET;
 
                     if (epoll_ctl(epollFd, EPOLL_CTL_ADD, clientFd, &event) >= 0) {
                         (*env)->CallVoidMethod(env, obj, handleNewConnection, clientFd);
