@@ -1,8 +1,6 @@
 #include <jni.h>
 #include <libgen.h>
 #include <sys/stat.h>
-#include <dlfcn.h>      // 🚀 CRÍTICO: Necesario para usar dlopen y enganchar las rutinas nativas
-#include <android/log.h> // 🚀 CRÍTICO: Para imprimir el estado en tu Logcat de Android
 
 #include "vk_context.h"
 #include "vortek_serializer.h"
@@ -16,17 +14,6 @@ VulkanWrapper vulkanWrapper = {0};
 bool vortekSerializerCastVkObject = true;
 
 static void* openVulkanLibrary(JNIEnv* env, jstring nativeLibraryDir, jstring libvulkanPath) {
-    // 🚀 EL PUENTE MAESTRO DE ALEXVORXX:
-    // Obligamos al cargador dinámico del Kernel a inyectar libXlorie.so en la memoria RAM
-    // antes de que inicialice cualquier contexto de Vulkan. Esto fuerza el amarre de relojes
-    // multimedia y clava la sincronización de audios, intros y logos de golpe en tu Mali.
-    void* xlorie_handle = dlopen("libXlorie.so", RTLD_NOW | RTLD_GLOBAL);
-    if (xlorie_handle) {
-        __android_log_print(ANDROID_LOG_INFO, "VortekRenderer", "🚀 ¡ÉXITO! libXlorie.so cargada de forma dinámica en la GPU Mali.");
-    } else {
-        __android_log_print(ANDROID_LOG_WARN, "VortekRenderer", "libXlorie.so no se pudo precargar en este hilo nativo.");
-    }
-
     void* libvulkan;
     if (libvulkanPath) {
         const char* nativeLibraryDirC = (*env)->GetStringUTFChars(env, nativeLibraryDir, NULL);
