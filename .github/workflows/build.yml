@@ -57,7 +57,7 @@ jobs:
           
           echo "🌟 ¡Ecosistema completo de la rama 4.1 inyectado con éxito absoluto!"
 
-                - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
+      - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
         run: |
           export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
           export CXXFLAGS="-Wno-error"
@@ -65,7 +65,7 @@ jobs:
           ./gradlew assembleDebug --no-daemon
           
           echo "🔍 RECONOCIMIENTO DE DISCO EN CALIENTE:"
-          echo "Buscando qué archivos se generaron realmente en la carpeta app/build..."
+          echo "Buscando qué archivos se generaron realmente..."
           find app/build -name "*.apk" -o -name "*.aar" || echo "No se encontró nada en app/build"
           
           echo "Listando el contenido de app/build/outputs si existe:"
@@ -75,8 +75,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-Mali-Vortek-APK
-          # 🚀 RASTREO GLOBAL INDESTRUCTIBLE:
-          # Le ordenamos a las Actions que busquen cualquier archivo terminado en .apk
-          # en absolutamente TODO el espacio de trabajo, saltándose cualquier carpeta caprichosa de Gradle.
           path: "**/*.apk"
           retention-days: 7
