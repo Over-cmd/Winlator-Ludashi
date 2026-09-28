@@ -46,8 +46,14 @@ public abstract class GPUInformation {
     public native static String[] enumerateExtensions(String driverName, Context context);
 
     static {
-        // 🚀 SOLUCIÓN GANADORA DEFINITIVA: 
-        // Las llamadas de Vortek se resuelven de manera interna por debajo al cargar "winlator".
+        // 🚀 INYECCIÓN MULTIMEDIA MALI: Cargamos el sincronizador libXlorie.so de Alexvorxx
+        // Esto activa el reloj unificado que amarra los hilos de audio y vídeo de fábrica.
+        try {
+            System.loadLibrary("Xlorie");
+        } catch (UnsatisfiedLinkError e) {
+            Log.e("GPUInformation", "No se pudo cargar libXlorie.so en este dispositivo", e);
+        }
+        
         System.loadLibrary("winlator");
     }
 }
