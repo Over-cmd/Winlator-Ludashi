@@ -213,22 +213,32 @@ static snd_pcm_sframes_t android_aserver_transfer(snd_pcm_ioplug_t* io, const sn
     snd_pcm_android_aserver_t* android_aserver = io->private_data;
 
     char* data = (char*)areas->addr + (areas->first + areas->step * offset) / 8;
-
     int request_length = size * android_aserver->frame_bytes;
-    char request_data[MIN_REQUEST_LENGTH];
-    request_data[0] = REQUEST_CODE_WRITE;
-    memcpy(request_data + 1, &request_length, 4);
-    
-    if (android_aserver->use_shm) memcpy(android_aserver->buffer, data, request_length);
-    
-    int res = write(android_aserver->fd, &request_data, MIN_REQUEST_LENGTH);
-    if (res < 0) return 0;
-    
-    if (!android_aserver->use_shm) {
-        res = write(android_aserver->fd, data, request_length);
+
+    if (android_aserver->use_shm) {
+        // MODO SEGMENTO COMPARTIDO: Estructura plana estándar de alta velocidad
+        char request_data[MIN_REQUEST_LENGTH];
+        request_data[0] = REQUEST_CODE_WRITE;
+        memcpy(request_data + 1, &request_length, 4);
+        memcpy(android_aserver->buffer, data, request_length);
+        int res = write(android_aserver->fd, &request_data, MIN_REQUEST_LENGTH);
         if (res < 0) return 0;
     }
-    
+    else {
+        // 🚀 MEJORA CRÍTICA MALI-AUDIO (MODO UNIFICADO EMULADO):
+        // Creamos un búfer combinado en la pila para fusionar la cabecera y el audio.
+        // Esto elimina la fragmentación por red interna y evita los micro-retrasos en cinemáticas.
+        int total_packet_size = MIN_REQUEST_LENGTH + request_length;
+        char single_packet[total_packet_size];
+
+        single_packet[0] = REQUEST_CODE_WRITE;
+        memcpy(single_packet + 1, &request_length, 4);
+        memcpy(single_packet + MIN_REQUEST_LENGTH, data, request_length);
+
+        int res = write(android_aserver->fd, single_packet, total_packet_size);
+        if (res < 0) return 0;
+    }
+
     return size;
 }
 
