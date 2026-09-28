@@ -85,10 +85,19 @@ public class ALSAClient {
         }
 
         if (playing) {
+            // 🚀 PRIORIDAD MALI-AUDIO EXTREMA:
+            // Elevamos dinámicamente la prioridad del hilo actual de Java en el planificador
+            // de Android para evitar que los picos de texturas de la GPU ralenticen el vaciado del buffer.
+            int oldPriority = Thread.currentThread().getPriority();
+            if (oldPriority != Thread.MAX_PRIORITY) Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+
             int numFrames = data.limit() / frameBytes;
             int framesWritten = write(streamPtr, data, numFrames);
             if (framesWritten > 0) position += framesWritten;
             data.rewind();
+
+            // Restauramos la prioridad original para mantener el equilibrio del sistema
+            if (oldPriority != Thread.MAX_PRIORITY) Thread.currentThread().setPriority(oldPriority);
         }
     }
 
