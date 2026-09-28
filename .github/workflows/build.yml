@@ -29,6 +29,21 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
+      - name: 🚀 4.5. Inyección Automática del Sistema de Archivos Pesado (Mali Fix)
+        run: |
+          echo "📥 Descargando la base del sistema operativo Glibc de Alexvorxx..."
+          
+          # Construimos la URL en partes para evitar cortes de texto en el log
+          URL_BASE="https://github.com"
+          URL_BASE="${URL_BASE}/alexvorxx"
+          URL_BASE="${URL_BASE}/winlator/raw/main"
+          URL_BASE="${URL_BASE}/app/src/main/assets/imagefs.txz"
+          
+          # Descargamos el archivo pesado y lo camuflamos con el nombre que espera tu Java
+          curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_BASE"
+          
+          echo "🌟 ¡El archivo pesado se ha descargado e inyectado con éxito en tus assets virtuales!"
+
       - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
         # 🚀 JAQUE MATE AL LINKER: Forzamos flags globales de enlace para anular los --no-undefined del proyecto base
         run: |
