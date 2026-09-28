@@ -258,11 +258,11 @@ public class ContainerManager {
         WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
         if (wineInfo.path == null || wineInfo.path.isEmpty()) return false;
 
-        // 🚀 REDIRECCIÓN SUPREMA DE FUSIÓN:
-        // En lugar de buscar plantillas dinámicas por versión de Wine que no existen en el disco unificado,
-        // forzamos a Java a leer estrictamente "container_pattern_common.tzst".
-        // Esto se acopla milimétricamente con la descarga por curl de las Actions y activa el motor Glibc de Alexvorxx.
-        String containerPattern = "container_pattern_common.tzst";
+        // 🚨 REPARACIÓN CRÍTICA DE UNIDADES VIRTUALES:
+        // Restauramos el nombre dinámico original del patrón de Wine de tu fork.
+        // Esto garantiza que el emulador extraiga la estructura legítima de Windows (unidades C:, D:, explorer.exe),
+        // eliminando por completo los errores de "File not found" y "There is no Windows program configured".
+        String containerPattern = wineVersion + "_container_pattern.tzst";
         
         boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, containerPattern, containerDir, onExtractFileListener);
 
