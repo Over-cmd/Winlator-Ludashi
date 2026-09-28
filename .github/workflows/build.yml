@@ -29,11 +29,11 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 🚀 4.5. Inyección Oficial de BrunoDev Alineada con Ludashi Assets (Mali Fix)
+      - name: 🚀 4.5. Inyección Oficial del RootFS de BrunoDev (Mali Fix)
         run: |
-          echo "📥 Construyendo enlaces en caliente..."
+          echo "📥 Construyendo enlace del motor en caliente..."
           
-          # Datos del repositorio oficial estable de BrunoDev
+          # Datos del repositorio estable de BrunoDev
           DOM1="https://github.com"
           USER1="brunodev85"
           REPO1="winlator-app"
@@ -41,19 +41,12 @@ jobs:
           
           mkdir -p app/src/main/assets
           
-          # 1️⃣ SOLUCIÓN AL ROOTFS: Descargamos el sistema Linux de BrunoDev pero lo guardamos 
-          # exactamente con el nombre de tu base: container_pattern_common.tzst
+          # Descargamos el motor Linux de BrunoDev pero adaptamos el nombre al de tu base
           URL_ROOTFS="${DOM1}/${USER1}/${REPO1}/raw/${HASH1}/app/src/main/assets/rootfs.tzst"
           echo "📥 Descargando y alineando el sistema de archivos base..."
           curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_ROOTFS"
           
-          # 2️⃣ SOLUCIÓN A LA PLANTILLA DE WINDOWS: Descargamos el molde limpio de BrunoDev pero lo guardamos
-          # con el nombre exacto de tu contenedor: proton-9.0-arm64ec_container_pattern.tzst
-          URL_PATTERN="${DOM1}/${USER1}/${REPO1}/raw/${HASH1}/app/src/main/assets/container_pattern.tzst"
-          echo "📥 Descargando y alineando la plantilla de Windows de Ludashi..."
-          curl -L -o app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst "$URL_PATTERN"
-          
-          echo "🌟 ¡Clonación de assets oficiales acoplada milimétricamente con tu rama original!"
+          echo "🌟 ¡Motor base inyectado y alineado con éxito!"
 
       - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
         # 🚀 JAQUE MATE AL LINKER: Forzamos flags globales de enlace para anular los --no-undefined del proyecto base
