@@ -29,32 +29,33 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 🚀 4.5. Inyección Oficial del RootFS de BrunoDev (Mali Fix)
+      - name: 🚀 4.5. Inyección de Assets Oficiales de la Rama 4.1 de StevenMXZ (Mali Fix)
         run: |
-          echo "📥 Construyendo enlace del motor en caliente..."
+          echo "📥 Construyendo enlaces para la rama 4.1..."
           
-          # Datos del repositorio estable de BrunoDev
           DOM1="https://github.com"
-          USER1="brunodev85"
-          REPO1="winlator-app"
-          HASH1="a030f552f452158a2db64fdb32b490fa19c0b48d"
+          USER1="StevenMXZ"
+          REPO1="Winlator-Ludashi"
+          BRANCH1="4.1"
           
           mkdir -p app/src/main/assets
           
-          # Descargamos el motor Linux de BrunoDev pero adaptamos el nombre al de tu base
-          URL_ROOTFS="${DOM1}/${USER1}/${REPO1}/raw/${HASH1}/app/src/main/assets/rootfs.tzst"
-          echo "📥 Descargando y alineando el sistema de archivos base..."
+          # 1️⃣ Descarga del motor Linux unificado (RootFS)
+          URL_ROOTFS="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/container_pattern_common.tzst"
+          echo "📥 Descargando container_pattern_common.tzst..."
           curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_ROOTFS"
           
-          echo "🌟 ¡Motor base inyectado y alineado con éxito!"
-
-      - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
-        # 🚀 JAQUE MATE AL LINKER: Forzamos flags globales de enlace para anular los --no-undefined del proyecto base
-        run: |
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
-          export CXXFLAGS="-Wno-error"
-          export LDFLAGS="-Wl,--allow-shlib-undefined -Wl,--unresolved-symbols=ignore-all"
-          ./gradlew assembleDebug --no-daemon
+          # 2️⃣ Descarga de la plantilla Proton ARM64EC
+          URL_ARM64EC="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst"
+          echo "📥 Descargando proton-9.0-arm64ec_container_pattern.tzst..."
+          curl -L -o app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst "$URL_ARM64EC"
+          
+          # 3️⃣ Descarga de la nueva plantilla Proton x86_64
+          URL_X86_64="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst"
+          echo "📥 Descargando proton-9.0-x86_64_container_pattern.tzst..."
+          curl -L -o app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst "$URL_X86_64"
+          
+          echo "🌟 ¡Ecosistema completo de la rama 4.1 inyectado con éxito absoluto!"
 
       - name: 6. Subir APK Fusionado como Artefacto Descargable de GitHub
         uses: actions/upload-artifact@v4
