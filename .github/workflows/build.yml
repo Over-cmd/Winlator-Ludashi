@@ -29,33 +29,28 @@ jobs:
       - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
         run: chmod +x gradlew
 
-      - name: 🚀 4.5. Inyección de Assets Oficiales de la Rama 4.1 de StevenMXZ (Mali Fix)
+      - name: 🚀 4.5. Inyección de Assets Originales de la Rama ludashi-3.1 de StevenMXZ (Mali Fix)
         run: |
-          echo "📥 Construyendo enlaces para la rama 4.1..."
+          echo "📥 Construyendo enlaces estables para la rama ludashi-3.1..."
           
           DOM1="https://github.com"
           USER1="StevenMXZ"
           REPO1="Winlator-Ludashi"
-          BRANCH1="4.1"
+          BRANCH1="ludashi-3.1"
           
           mkdir -p app/src/main/assets
           
-          # 1️⃣ Descarga del motor Linux unificado (RootFS)
+          # 1️⃣ Descarga del motor de sistema unificado correcto (RootFS de fábrica)
           URL_ROOTFS="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/container_pattern_common.tzst"
           echo "📥 Descargando container_pattern_common.tzst..."
           curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_ROOTFS"
           
-          # 2️⃣ Descarga de la plantilla Proton ARM64EC
-          URL_ARM64EC="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst"
+          # 2️⃣ Descarga de la plantilla legítima de Windows Proton
+          URL_PATTERN="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst"
           echo "📥 Descargando proton-9.0-arm64ec_container_pattern.tzst..."
-          curl -L -o app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst "$URL_ARM64EC"
+          curl -L -o app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst "$URL_PATTERN"
           
-          # 3️⃣ Descarga de la nueva plantilla Proton x86_64
-          URL_X86_64="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst"
-          echo "📥 Descargando proton-9.0-x86_64_container_pattern.tzst..."
-          curl -L -o app/src/main/assets/proton-9.0-x86_64_container_pattern.tzst "$URL_X86_64"
-          
-          echo "🌟 ¡Ecosistema completo de la rama 4.1 inyectado con éxito absoluto!"
+          echo "🌟 ¡Ecosistema original unificado ludashi-3.1 inyectado con éxito!"
 
       - name: 5. Ejecutar Forja y Compilación del APK (Ignorando Restricciones del Linker)
         run: |
