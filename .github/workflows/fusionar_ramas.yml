@@ -1,63 +1,60 @@
-name: 🚀 Compilador de Winlator Ludashi Desde Mi Fork
+name: 🚀 Compilador de Winlator Ludashi 3.1 Original
 
 on:
   workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
 
 jobs:
-  build-ludashi-3-1:
+  build-ludashi-31-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar el Código Fuente Original de la Rama ludashi-3.1
+      - name: 1. Descargar el Código Fuente Original de la Rama/Tag v3.1
         uses: actions/checkout@v4
         with:
-          ref: ludashi-3.1
-          submodules: 'recursive'
-          fetch-depth: 0
+          ref: 'v3.1'            # 🎯 Apunta de forma estricta a la versión 3.1 del repositorio
+          submodules: 'recursive' # Clona submódulos nativos obligatorios para Box86/64
 
-      - name: 2. Configurar Entorno de Java (JDK 17 Oficial)
+      - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. Forzar Entorno Android NDK r26b Rígido
+      - name: 3. Configurar Android SDK e Instalar NDK Estable para la v3.1
         run: |
-          # Declaramos las rutas nativas preinstaladas del NDK r26b en el entorno global
-          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=/usr/local/lib/android/sdk/ndk/26.1.10909125" >> $GITHUB_ENV
-          
-          # 🚀 EL TRUCO MAESTRO: Creamos el archivo local.properties de fábrica.
-          # Esto destruye cualquier automatización de GitHub y obliga a Gradle a leer el NDK r26b de forma obligatoria.
-          echo "sdk.dir=/usr/local/lib/android/sdk" > local.properties
-          echo "ndk.dir=/usr/local/lib/android/sdk/ndk/26.1.10909125" >> local.properties
-          
-          # Aceptamos las licencias oficiales de Google
-          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          echo "📥 Descargando e instalando NDK correspondiente..."
+          # Se fuerza la instalación del NDK estable usado en las variantes bionic 3.x
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+
+      - name: 🚀 3.5. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
+        run: |
+          echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
+          sudo apt-get update -y
+          sudo apt-get install -y glslang-tools
+          echo "✅ Verificando instalación:"
+          glslangValidator -v
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
         run: chmod +x gradlew
 
-      - name: 5. Ejecutar Compilación Pura y Nativa de Fábrica (Variante 3.1)
+      - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
         run: |
-          # 🚀 SEGUNDO BLINDAJE CFLAGS:
-          # Pasamos todas las rutas de inclusión nativas posibles para que Clang encuentre 'vk_context.h'
-          # sin importar desde dónde lo esté llamando CMake.
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I${{ github.workspace }}/app/src/main/cpp/winlator/renderer/vulkan -I${{ github.workspace }}/app/src/main/cpp/winlator"
+          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
           export CXXFLAGS="-Wno-error"
-          
+          # Compila de forma limpia ignorando demonios pesados en la máquina virtual
           ./gradlew assembleDebug --no-daemon
 
-
-
-      - name: 6. Localizar el APK Resultante de la Forja
+      - name: 6. Rastreo e Identificación del APK Resultante
         run: |
-          echo "🔍 Buscando la ruta exacta del instalador:"
+          echo "🔍 Localizando el instalador en el árbol de directorios:"
           find app/build/outputs -name "*.apk" || echo "No se encontró ningún APK"
 
-      - name: 7. Subir APK Original 3.1 como Artefacto Descargable
+      - name: 7. Subir APK Original como Artefacto Descargable
         uses: actions/upload-artifact@v4
         with:
-          name: Winlator-Ludashi-3.1-Pure-Build
-          path: "**/*.apk"
+          name: Winlator-Bionic-Ludashi-3.1-Original
+          path: app/build/outputs/apk/debug/*.apk  # Apunta directo al directorio de debug limpio
           retention-days: 7
