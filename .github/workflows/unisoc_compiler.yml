@@ -19,11 +19,14 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. Configurar e Inicializar el Entorno Android NDK (Fijo r26b)
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 34
-          ndk-version: 26.1.10909125
+      - name: 3. Configurar Android SDK Nativo (Saltando Acciones Rotas)
+        run: |
+          # Usamos las herramientas nativas preinstaladas por GitHub para evitar el bug del paquete 'tools'
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          
+          # Aceptamos de forma automática todas las licencias oficiales de Google
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
         run: chmod +x gradlew
@@ -45,4 +48,3 @@ jobs:
           name: Winlator-Bionic-Ludashi-4.1-Original
           path: "**/*.apk"
           retention-days: 7
-          
