@@ -22,12 +22,17 @@ jobs:
 
       - name: 3. Configurar Android SDK Nativo (Saltando Acciones Rotas)
         run: |
-          # Usamos las herramientas nativas preinstaladas por GitHub para evitar el bug del paquete 'tools'
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
-          
-          # Aceptamos de forma automática todas las licencias oficiales de Google
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+
+      - name: 🚀 3.5. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
+        run: |
+          echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
+          sudo apt-get update -y
+          sudo apt-get install -y glslang-tools
+          echo "✅ Verificando instalación:"
+          glslangValidator -v
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
         run: chmod +x gradlew
