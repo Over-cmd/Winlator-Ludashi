@@ -13,13 +13,17 @@ jobs:
         with:
           ref: 'ludashi-3.1'       # Rama correspondiente para la versión 3.1
           fetch-depth: 0          # Evita errores de recorte en el árbol de Git histórico
-          submodules: 'recursive' # Intento inicial de clonación de submódulos
 
-      - name: 🛠️ 1.5. Forzar Sincronización de Submódulos (Fix Estricto de Carpetas)
+      - name: 🛠️ 1.5. Parchear e Inyectar Código Fuente de Adrenotools Manualmente
         run: |
-          echo "🔄 Sincronizando y actualizando todos los submódulos..."
-          git submodule sync --recursive
-          git submodule update --init --recursive --force --depth=1
+          echo "🔄 Eliminando la carpeta del submódulo vacío/roto..."
+          rm -rf app/src/main/cpp/adrenotools
+          
+          echo "📥 Descargando Adrenotools fresco y completo desde la fuente oficial..."
+          git clone --recursive https://github.com app/src/main/cpp/adrenotools
+          
+          echo "🔍 Verificando existencia física de vk_context.h:"
+          find app/src/main/cpp/adrenotools -name "vk_context.h" || echo "⚠️ ADVERTENCIA: No se encontró el archivo en la descarga automática."
 
       - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
         uses: actions/setup-java@v4
@@ -50,26 +54,15 @@ jobs:
           CMAKE_PATH="app/src/main/cpp/CMakeLists.txt"
           
           if [ -f "$CMAKE_PATH" ]; then
-            # Buscamos de forma dinámica los subdirectorios clave de adrenotools en el disco
-            ADRENO_SRC=$(find $(pwd) -type d -name "src" | grep "adrenotools" | head -n 1 || echo "")
-            ADRENO_INC=$(find $(pwd) -type d -name "include" | grep "adrenotools" | head -n 1 || echo "")
+            ADRENO_SRC="${{ github.workspace }}/app/src/main/cpp/adrenotools/src"
+            ADRENO_INC="${{ github.workspace }}/app/src/main/cpp/adrenotools/include"
             
-            # Si no los encuentra dinámicamente, usamos las rutas estables predeterminadas
-            [ -z "$ADRENO_SRC" ] && ADRENO_SRC="${{ github.workspace }}/app/src/main/cpp/adrenotools/src"
-            [ -z "$ADRENO_INC" ] && ADRENO_INC="${{ github.workspace }}/app/src/main/cpp/adrenotools/include"
-            
-            echo "🎯 Rutas encontradas:"
-            echo "SRC: $ADRENO_SRC"
-            echo "INC: $ADRENO_INC"
-            
-            # Inyectamos las instrucciones de CMake obligatorias al inicio del archivo para incluir estas carpetas
+            # Inyectamos las instrucciones de CMake obligatorias al inicio del archivo
             sed -i "1i include_directories(\"${ADRENO_SRC}\")" $CMAKE_PATH
             sed -i "1i include_directories(\"${ADRENO_INC}\")" $CMAKE_PATH
             sed -i "1i include_directories(\"${{ github.workspace }}/app/src/main/cpp/winlator\")" $CMAKE_PATH
             
-            echo "✅ Modificación de CMakeLists.txt completada de forma exitosa."
-          else
-            echo "⚠️ No se encontró el archivo principal CMakeLists.txt en la ruta esperada."
+            echo "✅ Modificación de CMakeLists.txt completada."
           fi
 
       - name: 🚀 3.9. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
@@ -84,7 +77,7 @@ jobs:
 
       - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
         run: |
-          # Deshabilitamos alertas estrictas enviándole argumentos nativos de compilación C/C++ directamente a Gradle
+          # Compilación enviando argumentos directamente al compilador de C/C++
           ./gradlew assembleDebug --no-daemon \
             -Pandroid.sdk.dir=$ANDROID_HOME \
             -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653 \
