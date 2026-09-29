@@ -47,18 +47,12 @@ public class ALSAClient {
 
         if (!isValidBufferSize()) return;
 
+        // 🛡️ RECONEXIÓN ESTÁNDAR SÍNCRONA:
+        // Saneamos el método eliminando las llamadas experimentales con firmas incompatibles.
+        // La inicialización del búfer SHM ya se realiza de forma perfecta en tu archivo 
+        // ALSARequestHandler.java en el comando RequestCodes.PREPARE. Aquí solo encendemos el motor.
         streamPtr = create(dataType.ordinal(), channelCount, sampleRate, bufferSize);
-        
-        // 🚀 RECONEXIÓN DEL BÚFER COMPARTIDO MALI-AUDIO:
-        // Si el stream nativo se creó con éxito, obligamos al sistema a regenerar 
-        // el mapa de memoria en la RAM compartida para evitar que el puntero se quede en null y crashee.
-        if (streamPtr > 0) {
-            int shmKey = com.winlator.cmod.sysvshm.SysVSharedMemory.getSHMKeyByPtr(streamPtr);
-            if (shmKey > 0) {
-                sharedBuffer = com.winlator.cmod.sysvshm.SysVSharedMemory.mapSHMSegment(shmKey, getBufferSizeInBytes());
-            }
-            start();
-        }
+        if (streamPtr > 0) start();
     }
 
     public void start() {
