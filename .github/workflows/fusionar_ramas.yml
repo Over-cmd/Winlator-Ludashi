@@ -21,10 +21,14 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. Configurar Android SDK Nativo del Servidor
+      - name: 3. Configurar Android SDK y Forzar NDK r26b Legítimo
         run: |
+          # Fijamos de forma estricta el NDK r26b en el entorno para que CMake 
+          # lea las rutas nativas de Vulkan originales de la versión 3.1
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
+          
+          # Aceptamos las licencias de Google de forma automática
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
@@ -32,12 +36,10 @@ jobs:
 
       - name: 5. Ejecutar Compilación Pura y Nativa de Fábrica (Variante 3.1)
         run: |
-          # 🚀 ENLAZADOR GRÁFICO BLINDADO 3.1:
-          # Inyectamos en las banderas del compilador la ruta de las cabeceras de Vulkan y Mesa
-          # para que Clang localice 'vk_context.h' en las subcarpetas del proyecto aunque el submódulo falle.
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I/home/runner/work/Winlator-Ludashi/Winlator-Ludashi/app/src/main/cpp/winlator"
+          # Desactivamos detenciones por advertencias menores y forzamos el uso del NDK correcto
+          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
           export CXXFLAGS="-Wno-error"
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleDebug --no-daemon -Pandroid.ndkPath=$ANDROID_HOME/ndk/26.1.10909125
 
       - name: 6. Localizar el APK Resultante de la Forja
         run: |
