@@ -11,9 +11,15 @@ jobs:
       - name: 1. Descargar el Código Fuente de la Rama Ludashi-3.1
         uses: actions/checkout@v4
         with:
-          ref: 'ludashi-3.1'       # 🎯 Nombre correcto de la rama en el repositorio para la versión 3.1
+          ref: 'ludashi-3.1'       # Rama correspondiente para la versión 3.1
           fetch-depth: 0          # Evita errores de recorte en el árbol de Git histórico
-          submodules: 'recursive' # Clona submódulos nativos obligatorios para Box86/64
+          submodules: 'recursive' # Intento inicial de clonación de submódulos
+
+      - name: 🛠️ 1.5. Forzar Inicialización Profunda de Submódulos (Fix vk_context.h)
+        run: |
+          echo "🔄 Limpiando y sincronizando submódulos de forma estricta..."
+          git submodule sync --recursive
+          git submodule update --init --recursive --force --depth=1
 
       - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
         uses: actions/setup-java@v4
@@ -25,8 +31,7 @@ jobs:
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          echo "📥 Descargando e instalando NDK correspondiente..."
-          # Se fuerza la instalación del NDK estable usado en las variantes bionic 3.x
+          echo "📥 Descargando e instalando NDK 25 correspondiente..."
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
@@ -45,8 +50,13 @@ jobs:
         run: |
           export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
           export CXXFLAGS="-Wno-error"
-          # Compila de forma limpia ignorando demonios pesados en la máquina virtual
-          ./gradlew assembleDebug --no-daemon
+          # Forzamos de forma explícita las rutas del SDK y NDK correctos directamente en el comando de Gradle
+          ./gradlew assembleDebug --no-daemon \
+            -Pandroid.sdk.dir=$ANDROID_HOME \
+            -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/25.2.9519653
 
       - name: 6. Rastreo e Identificación del APK Resultante
         run: |
