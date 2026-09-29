@@ -57,7 +57,7 @@ public class Container {
     private String wineVersion = WineInfo.MAIN_WINE_VERSION.identifier();
     private boolean showFPS;
     private boolean rendererNative = true;
-    private String rendererPresentMode = "fifo";
+    private String rendererPresentMode = "mailbox";
     private String rendererDriverId = "system";
     private int rendererFilterMode = 0;
     private boolean rendererSwapRB = true;
