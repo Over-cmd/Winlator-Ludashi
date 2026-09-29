@@ -1,111 +1,43 @@
-name: 🚀 Compilador Winlator Ludashi 3.1 Puro
+name: 🚀 Compilador Winlator Ludashi 3.1 Original
 
 on:
-  workflow_dispatch: # Activa el botón manual en la pestaña Actions
+  workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
 
 jobs:
-  compilar-apk:
-    name: Compilador APK Oficial 3.1
+  build-ludashi-31:
     runs-on: ubuntu-latest
 
     steps:
       - name: 1. Descargar Código Fuente de la Rama ludashi-3.1
         uses: actions/checkout@v4
         with:
-          ref: 'ludashi-3.1'       # Apunta de forma estricta a tu rama 3.1 original
-          fetch-depth: 1
+          ref: 'ludashi-3.1'       # Descarga la rama 3.1 original
+          submodules: 'recursive' # Inicializa y clona todos los submódulos de fábrica automáticamente
 
-      - name: 🛠️ 1.5. Inyección Manual y Limpia de Código (Anular Submódulos Rotos)
-        run: |
-          echo "🔄 Eliminando rastros de submódulos huérfanos..."
-          rm -rf app/src/main/cpp/adrenotools
-          
-          echo "📥 Clonando base limpia de adrenotools..."
-          git clone --depth=1 https://github.com app/src/main/cpp/adrenotools
-          
-          echo "📥 Descargando e inyectando dependencia linkernsbypass de forma directa..."
-          rm -rf app/src/main/cpp/adrenotools/lib/linkernsbypass
-          git clone --depth=1 https://github.com app/src/main/cpp/adrenotools/lib/linkernsbypass
-          
-          echo "🔍 Verificando existencia física de vk_context.h en el árbol:"
-          find app/src/main/cpp/adrenotools -name "vk_context.h"
-
-      - name: 2. Instalar Dependencias del Sistema y Validador Vulkan (glslang)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools
-
-      - name: 3. Configurar Entorno de Java (JDK 17)
+      - name: 2. Configurar Entorno de Java (JDK 17)
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3.2. Configurar Android SDK e Instalar NDK 25 Estricto
-        run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
+      - name: 3. Configurar Android SDK y NDK desde el Repositorio
+        uses: android-actions/setup-android@v3
 
-      - name: 🛠️ 3.5. Forzar Inyección de NDK y Parchear Archivos de Configuración
+      - name: 4. Instalar Herramientas de Compilación del Sistema
         run: |
-          echo "sdk.dir=$ANDROID_HOME" > local.properties
-          echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" >> local.properties
-          sed -i 's/ndkVersion .*/ndkVersion "25.2.9519653"/g' app/build.gradle
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools
 
-      - name: 🛠️ 3.8. Parchear CMakeLists.txt (Inyección de Cabeceras Estructurales para la v3.1)
-        run: |
-          CMAKE_PATH="app/src/main/cpp/CMakeLists.txt"
-          if [ -f "$CMAKE_PATH" ]; then
-            ADRENO_SRC="${{ github.workspace }}/app/src/main/cpp/adrenotools/src"
-            ADRENO_INC="${{ github.workspace }}/app/src/main/cpp/adrenotools/include"
-            
-            # Inyectamos de forma obligatoria las carpetas de búsqueda para evitar el error en vulkan.c
-            sed -i "1i include_directories(\"${ADRENO_SRC}\")" $CMAKE_PATH
-            sed -i "1i include_directories(\"${ADRENO_INC}\")" $CMAKE_PATH
-            sed -i "1i include_directories(\"${{ github.workspace }}/app/src/main/cpp/winlator\")" $CMAKE_PATH
-            echo "✅ Parche de inyección estructural completado para v3.1."
-          fi
-
-      - name: 4. Otorgar Permisos de Ejecución al Compilador Local Gradle
+      - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 🚀 4.5. Inyección de Assets de Expansión Originales de StevenMXZ
-        run: |
-          echo "📥 Construyendo enlaces estables para la rama ludashi-3.1..."
-          DOM1="https://github.com"
-          USER1="StevenMXZ"
-          REPO1="Winlator-Ludashi"
-          BRANCH1="ludashi-3.1"
-          
-          mkdir -p app/src/main/assets
-          
-          # Descarga del RootFS base legítimo
-          URL_ROOTFS="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/container_pattern_common.tzst"
-          curl -L -o app/src/main/assets/container_pattern_common.tzst "$URL_ROOTFS"
-          
-          # Descarga de la plantilla del contenedor Proton
-          URL_PATTERN="${DOM1}/${USER1}/${REPO1}/raw/${BRANCH1}/app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst"
-          curl -L -o app/src/main/assets/proton-9.0-arm64ec_container_pattern.tzst "$URL_PATTERN"
-          
-          echo "🌟 Assets inyectados de forma exitosa."
+      - name: 6. Ejecutar Compilación Estándar de Gradle
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: 5. Ejecutar Compilación de Fábrica
-        run: |
-          ./gradlew assembleDebug --no-daemon \
-            -Pandroid.sdk.dir=$ANDROID_HOME \
-            -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653 \
-            -Pandroid.ndkVersion="25.2.9519653" \
-            -Pandroid.nativeCompilerArgs="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
-          
-          echo "🔍 RECONOCIMIENTO DE DISCO EN CALIENTE:"
-          find app/build -name "*.apk" || echo "No se encontró nada en app/build"
-
-      - name: 6. Subir APK Original como Artefacto Descargable de GitHub
+      - name: 7. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: Winlator-Ludashi-3.1-Puro-APK
+          name: Winlator-Ludashi-3.1-Original-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
