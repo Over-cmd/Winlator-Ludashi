@@ -21,8 +21,10 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Configurar Android SDK y NDK desde el Repositorio
-        uses: android-actions/setup-android@v3
+      - name: 3. Aceptar Licencias de Android SDK Nativo (Reemplazo Fix de Acción Rota)
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
       - name: 4. Instalar Herramientas de Compilación del Sistema
         run: |
