@@ -12,17 +12,22 @@ jobs:
       - name: 1. Descargar Código Fuente de la Rama ludashi-3.1
         uses: actions/checkout@v4
         with:
-          ref: 'ludashi-3.1'       # 🎯 Apunta de forma estricta a tu rama 3.1 original
-          fetch-depth: 0
-          submodules: 'recursive'
+          ref: 'ludashi-3.1'       # Apunta de forma estricta a tu rama 3.1 original
+          fetch-depth: 1
 
-      - name: 🛠️ 1.5. Clonar e Inyectar Código Vivo de Adrenotools
+      - name: 🛠️ 1.5. Inyección Manual y Limpia de Código (Anular Submódulos Rotos)
         run: |
-          echo "🔄 Limpiando submódulo roto y clonando la versión viva de Adrenotools..."
+          echo "🔄 Eliminando rastros de submódulos huérfanos..."
           rm -rf app/src/main/cpp/adrenotools
-          git clone --recursive https://github.com app/src/main/cpp/adrenotools
           
-          echo "🔍 Verificando existencia física de vk_context.h en el disco:"
+          echo "📥 Clonando base limpia de adrenotools..."
+          git clone --depth=1 https://github.com app/src/main/cpp/adrenotools
+          
+          echo "📥 Descargando e inyectando dependencia linkernsbypass de forma directa..."
+          rm -rf app/src/main/cpp/adrenotools/lib/linkernsbypass
+          git clone --depth=1 https://github.com app/src/main/cpp/adrenotools/lib/linkernsbypass
+          
+          echo "🔍 Verificando existencia física de vk_context.h en el árbol:"
           find app/src/main/cpp/adrenotools -name "vk_context.h"
 
       - name: 2. Instalar Dependencias del Sistema y Validador Vulkan (glslang)
