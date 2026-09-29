@@ -12,6 +12,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: Ludashi-4.1
+          submodules: 'recursive' # Clona submódulos si el proyecto los requiere
 
       - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
         uses: actions/setup-java@v4
