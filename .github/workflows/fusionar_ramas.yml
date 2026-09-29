@@ -1,63 +1,60 @@
-name: Fusionar Ramas por la Fuerza (Ludashi + Alexvorxx)
+name: 🚀 Compilador de Winlator Ludashi 3.1 Original
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
 
 jobs:
-  git-merge-force:
+  build-ludashi-31-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Clonar tu repositorio de Ludashi
+      - name: 1. Descargar el Código Fuente Original de la Rama/Tag v3.1
         uses: actions/checkout@v4
         with:
-          ref: 'ludashi-3.1'
-          fetch-depth: 0 # Trae todo el historial de commits obligatoriamente
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: 'v3.1'            # 🎯 Apunta de forma estricta a la versión 3.1 del repositorio
+          submodules: 'recursive' # Clona submódulos nativos obligatorios para Box86/64
 
-      - name: 2. Configurar Identidad del Servidor Git
+      - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 3. Configurar Android SDK e Instalar NDK Estable para la v3.1
         run: |
-          git config --global user.name "GitHub Action Fusor"
-          git config --global user.email "action@github.com"
+          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          echo "📥 Descargando e instalando NDK correspondiente..."
+          # Se fuerza la instalación del NDK estable usado en las variantes bionic 3.x
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: 3. Inyectar Físicamente el Soporte Vulkan Mali de Alexvorxx
+      - name: 🚀 3.5. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
         run: |
-          echo "-> [Host] Desactivando filtro LFS para saltar el bloqueo de presupuesto..."
-          # 🚨 TRUCO MAESTRO: Saltamos la descarga de archivos grandes bloqueados por LFS
-          export GIT_LFS_SKIP_SMUDGE=1
-          
-          echo "-> [Host] Descargando el código fuente gráfico de Alexvorxx..."
-          git clone --depth=1 https://github.com/alexvorxx/winlator.git /tmp/alexsource
-          
-          echo "-> [Host] Inyectando carpetas nativas de Vortek/Mesa en Ludashi..."
-          # Copiamos la carpeta del renderizador que le da compatibilidad a tu GPU Mali
-          mkdir -p app/src/main/cpp/vortekrenderer
-          cp -r /tmp/alexsource/app/src/main/cpp/vortekrenderer/* app/src/main/cpp/vortekrenderer/ 2>/dev/null || true
-          
-          # Guardamos los cambios locales en el entorno temporal de Git
-          git add .
-          git commit -m "Fusión Física Forzada de Módulos Gráficos Mali" || true
+          echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
+          sudo apt-get update -y
+          sudo apt-get install -y glslang-tools
+          echo "✅ Verificando instalación:"
+          glslangValidator -v
 
+      - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
+        run: chmod +x gradlew
 
-      - name: 4. Hackear la Lista Blanca de Extensiones en el Código Fusionado
+      - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
         run: |
-          HELPER_PATH="app/src/main/cpp/vortekrenderer/src/vulkan_helper.c"
-          if [ -f "$HELPER_PATH" ]; then
-            echo "-> [Host] ¡Servidor Vortek localizado en las ramas! Rompiendo el bozal de las 53 extensiones..."
-            sed -i 's/int dstPropertyCount = context->exposedDeviceExtensions ? context->exposedDeviceExtensions->size : srcPropertyCount;/int dstPropertyCount = srcPropertyCount;/g' $HELPER_PATH
-            sed -i 's/if (context->exposedDeviceExtensions) {/if (false) {/g' $HELPER_PATH
-          else
-            echo "-> [Aviso] El archivo no requirió parches de texto dinámicos."
-          fi
+          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
+          export CXXFLAGS="-Wno-error"
+          # Compila de forma limpia ignorando demonios pesados en la máquina virtual
+          ./gradlew assembleDebug --no-daemon
 
-      - name: 5. Subir Rama Fusionada a tu Repositorio de GitHub
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPONAME: ${{ github.repository }}
+      - name: 6. Rastreo e Identificación del APK Resultante
         run: |
-          # Creamos la nueva rama limpia para no pisar tu rama original de desarrollo
-          git checkout -b ludashi-mali-fusion
-          
-          # 🚨 FIJADO SUPREMO: Usamos las variables nativas del host para evitar errores de escritura en la URL
-          git push https://x-access-token:$GITHUB_TOKEN@github.com/$REPONAME.git ludashi-mali-fusion --force
-          echo "-> ¡Rama fusionada 'ludashi-mali-fusion' subida con total éxito!"
+          echo "🔍 Localizando el instalador en el árbol de directorios:"
+          find app/build/outputs -name "*.apk" || echo "No se encontró ningún APK"
+
+      - name: 7. Subir APK Original como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Winlator-Bionic-Ludashi-3.1-Original
+          path: app/build/outputs/apk/debug/*.apk  # Apunta directo al directorio de debug limpio
+          retention-days: 7
