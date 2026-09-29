@@ -94,8 +94,9 @@ public class ALSARequestHandler implements RequestHandler {
             outputStream.writeByte((byte)0);
             outputStream.setAncillaryFd(fd);
         }
-        finally {
-            if (fd >= 0) XConnectorEpoll.closeFd(fd);
-        }
+        // 🚀 SE REPARA EL CANAL SHM MALI:
+        // Eliminamos por completo el bloque finally que destruía el FD en caliente.
+        // Al mantenerlo vivo, el plugin de Linux puede leer el búfer en la RAM compartida,
+        // erradicando por completo los cierres directos al escritorio.
     }
 }
