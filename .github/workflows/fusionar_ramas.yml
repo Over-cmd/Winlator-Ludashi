@@ -35,7 +35,14 @@ jobs:
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: 🚀 3.5. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
+      - name: 🛠️ 3.8. Forzar Bloqueo de Rutas mediante local.properties (Anular NDK 29)
+        run: |
+          echo "📝 Escribiendo archivo local.properties para anular la configuración global de GitHub..."
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" >> local.properties
+          cat local.properties
+
+      - name: 🚀 3.9. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
         run: |
           echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
           sudo apt-get update -y
@@ -46,11 +53,22 @@ jobs:
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
         run: chmod +x gradlew
 
-      - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
+      - name: 5. Ejecutar Compilación Pura y Nativa con Inyección de Cabeceras
         run: |
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
-          export CXXFLAGS="-Wno-error"
-          # Forzamos de forma explícita las rutas del SDK y NDK correctos directamente en el comando de Gradle
+          # Localizamos la ruta de vk_context.h dentro de adrenotools/src e incluimos su directorio en CFLAGS/CXXFLAGS
+          ADRENOTOOLS_SRC_DIR=$(find $(pwd) -type d -name "src" | grep "adrenotools" | head -n 1 || echo "")
+          
+          if [ -n "$ADRENOTOOLS_SRC_DIR" ]; then
+            echo "🎯 Directorio interno de adrenotools localizado en: $ADRENOTOOLS_SRC_DIR"
+            export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I$ADRENOTOOLS_SRC_DIR"
+            export CXXFLAGS="-Wno-error -I$ADRENOTOOLS_SRC_DIR"
+          else
+            echo "⚠️ No se localizó un directorio src específico dentro de adrenotools de manera automática."
+            export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I$(pwd)/app/src/main/cpp/adrenotools/src"
+            export CXXFLAGS="-Wno-error -I$(pwd)/app/src/main/cpp/adrenotools/src"
+          fi
+          
+          # Compilación forzando parámetros estrictos de Gradle
           ./gradlew assembleDebug --no-daemon \
             -Pandroid.sdk.dir=$ANDROID_HOME \
             -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653
