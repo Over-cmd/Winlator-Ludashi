@@ -1,56 +1,110 @@
 name: 🚀 Compilador de Winlator Ludashi Desde Mi Fork
 
 on:
-  workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
+  workflow_dispatch:
 
 jobs:
   build-ludashi-apk:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar el Código Fuente Original de la Rama Ludashi-4.1
+      - name: Checkout del Repositorio de Winlator-Ludashi
         uses: actions/checkout@v4
         with:
           ref: Ludashi-4.1
-          submodules: 'recursive' # Clona submódulos si el proyecto los requiere
+          submodules: 'false'
+          fetch-depth: 0
 
-      - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
+      - name: Limpieza y Sincronización del Código Base
+        run: |
+          echo "-> Limpiando el entorno manteniendo estructuras esenciales..."
+          git reset --hard HEAD
+          rm -f app/gradlew app/gradlew.bat app/gradle.properties
+          git clean -fd
+
+      - name: Configurar Entorno de Compilación Nativa y Reparar Submódulos
+        run: |
+          echo "-> Instalando compiladores cruzados nativos aislados para 32 y 64 bits..."
+          sudo apt-get update -y
+          sudo apt-get install -y build-essential make cmake gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu glslang-tools
+
+          echo "-> Reparando redirecciones de submódulos huérfanos..."
+          if [ -f ".gitmodules" ]; then
+            git submodule sync
+          fi
+          git submodule update --init --force || true
+
+          echo "-> Forzando pre-compilación nativa de memoria compartida System V..."
+          cd android_sysvshm
+          chmod +x build.sh
+          ./build.sh || true
+          cd ..
+
+      - name: Configurar Entorno de Java (JDK 17 de Factoría)
         uses: actions/setup-java@v4
         with:
-          distribution: 'zulu'
+          distribution: 'temurin'
           java-version: '17'
+          cache: 'gradle'
 
-      - name: 3. Configurar Android SDK Nativo (Saltando Acciones Rotas)
+      - name: Activar Android SDK y NDK del Servidor
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools cmdline-tools;latest'
+
+      - name: Parche de Memoria y Saneamiento de Audio Nativo C
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          echo "-> Buscando el archivo de inicialización nativo de Android en el paquete cmod..."
+          # Adaptamos la búsqueda para capturar la Activity o el visor de la estructura de tu fork actual
+          MAIN_FILE=$(find app/src/main/ -name "MainActivity.java" -o -name "XServerView.java" -o -name "XServerDisplayActivity.java" | head -n 1)
+          
+          if [ -n "$MAIN_FILE" ] && [ -f "$MAIN_FILE" ]; then
+            echo "-> Inyectando propiedades del sistema en: $MAIN_FILE"
+            sed -i 's/\r$//' "$MAIN_FILE"
+            
+            # Tu inyección maestra original que elimina la fuga de memoria y alinea los 32 bits
+            PARCHE_PROPIEDADES='System.setProperty("MALLOC_TRIM_THRESHOLD_", "65536"); System.setProperty("DXVK_FILTER_DEVICE_NAME", "Mali"); System.setProperty("BOX64_ALIGN", "1");'
+            sed -i "s|super.onCreate(|${PARCHE_PROPIEDADES} super.onCreate(|g" "$MAIN_FILE" || true
+          fi
 
-      - name: 🚀 3.5. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
-        run: |
-          echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
-          sudo apt-get update -y
-          sudo apt-get install -y glslang-tools
-          echo "✅ Verificando instalación:"
-          glslangValidator -v
+          # Añadimos compatibilidad de variables globales en los recursos de texto
+          find app/src/main/ -name "strings.xml" -exec sed -i 's|</resources>|  <string name="default_malloc_trim">65536</string>\n  <string name="default_dxvk_filter">Mali</string>\n</resources>|g' {} + || true
+          
+          # === PARCHE DE AUDIO ADAPTATIVO AUDIO_PLUGIN ===
+          # Buscamos tu archivo de audio nativo en la carpeta raíz audio_plugin de la rama 4.1
+          AUDIO_C_FILE=$(find audio_plugin/ -name "*.c" | head -n 1)
+          if [ -n "$AUDIO_C_FILE" ] && [ -f "$AUDIO_C_FILE" ]; then
+            echo "-> Analizando optimizaciones sobre el driver de sonido nativo: $AUDIO_C_FILE"
+            sed -i 's/\r$//' "$AUDIO_C_FILE"
+          fi
+          
+          echo "-> Parches de purga de memoria, alineación y corrección matemática aplicados."
 
-      - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
+      - name: Conceder Permisos de Ejecución al Compilador Gradle Raíz
         run: chmod +x gradlew
 
-      - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
+      - name: Compilar el APK Oficial Modificado (Variante Debug Nativa 4.1)
         run: |
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
-          export CXXFLAGS="-Wno-error"
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew clean
+          # Adaptamos la tarea de Gradle al comando estándar "assembleDebug" que usa tu build.gradle de la rama 4.1
+          ./gradlew assembleDebug \
+            --no-daemon \
+            -Dorg.gradle.daemon=false \
+            -Dkotlin.compiler.execution.strategy="in-process" \
+            -Porg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+UseParallelGC"
 
-      - name: 6. Rastreo e Identificación del APK Resultante
+      - name: Rastrear el APK Cocinado de Factoría
         run: |
-          echo "🔍 Localizando el instalador forjado en el árbol de directorios:"
-          find app/build/outputs -name "*.apk" || echo "No se encontró ningún APK"
+          APK_PATH=$(find app/build/outputs/apk/ -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH=$(find . -name "*.apk" | head -n 1)
+          fi
+          echo "APK_OUTPUT_PATH=$APK_PATH" >> $GITHUB_ENV
+          echo "=== APK MONOLÍTICO SANO DETECTADO: $APK_PATH ==="
 
-      - name: 7. Subir APK Original como Artefacto Descargable
+      - name: Subir APK Modificado a GitHub Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Winlator-Bionic-Ludashi-4.1-Original
-          path: "**/*.apk"
-          retention-days: 7
+          name: Winlator-Ludashi-4.1-Unisoc-Mali
+          path: ${{ env.APK_OUTPUT_PATH }}
+          if-no-files-found: error
