@@ -1,0 +1,48 @@
+name: 🚀 Compilador de Winlator Ludashi Desde Mi Fork
+
+on:
+  workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
+
+jobs:
+  build-ludashi-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar el Código Fuente Original de la Rama Ludashi-4.1
+        uses: actions/checkout@v4
+        with:
+          ref: Ludashi-4.1
+
+      - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: 3. Configurar e Inicializar el Entorno Android NDK (Fijo r26b)
+        uses: android-actions/setup-android@v3
+        with:
+          api-level: 34
+          ndk-version: 26.1.10909125
+
+      - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
+        run: chmod +x gradlew
+
+      - name: 5. Ejecutar Compilación Pura y Nativa del APK de Fábrica
+        run: |
+          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
+          export CXXFLAGS="-Wno-error"
+          ./gradlew assembleDebug --no-daemon
+
+      - name: 6. Rastreo e Identificación del APK Resultante
+        run: |
+          echo "🔍 Localizando el instalador forjado en el árbol de directorios:"
+          find app/build/outputs -name "*.apk" || echo "No se encontró ningún APK"
+
+      - name: 7. Subir APK Original como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Winlator-Bionic-Ludashi-4.1-Original
+          path: "**/*.apk"
+          retention-days: 7
+          
