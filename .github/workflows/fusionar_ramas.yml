@@ -8,10 +8,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar el Código Fuente Original de la Rama/Tag v3.1
+      - name: 1. Descargar el Código Fuente de la Rama Ludashi-3.1
         uses: actions/checkout@v4
         with:
-          ref: 'v3.1'            # 🎯 Apunta de forma estricta a la versión 3.1 del repositorio
+          ref: 'ludashi-3.1'       # 🎯 Nombre correcto de la rama en el repositorio para la versión 3.1
+          fetch-depth: 0          # Evita errores de recorte en el árbol de Git histórico
           submodules: 'recursive' # Clona submódulos nativos obligatorios para Box86/64
 
       - name: 2. Configurar Entorno de Java (JDK 17 de Factoría)
