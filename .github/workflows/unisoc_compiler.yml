@@ -12,7 +12,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: Ludashi-4.1
-          submodules: 'false'
+          # 🚀 BLINDAJE DE SUBMÓDULOS: Activamos 'recursive' en true para arrastrar 
+          # carpetas críticas como linkernsbypass y evitar carpetas nativas vacías en C++.
+          submodules: 'recursive'
           fetch-depth: 0
 
       - name: Limpieza y Sincronización del Código Base
@@ -28,11 +30,9 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y build-essential make cmake gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf gcc-aarch64-linux-gnu g++-aarch64-linux-gnu glslang-tools
 
-          echo "-> Reparando redirecciones de submódulos huérfanos..."
-          if [ -f ".gitmodules" ]; then
-            git submodule sync
-          fi
-          git submodule update --init --force || true
+          echo "-> Sincronizando y forzando la descarga profunda de submódulos C++..."
+          git submodule sync
+          git submodule update --init --recursive --force || true
 
           echo "-> Forzando pre-compilación nativa de memoria compartida System V..."
           cd android_sysvshm
@@ -55,7 +55,6 @@ jobs:
       - name: Parche de Memoria y Saneamiento de Audio Nativo C
         run: |
           echo "-> Buscando el archivo de inicialización nativo de Android en el paquete cmod..."
-          # Adaptamos la búsqueda para capturar la Activity o el visor de la estructura de tu fork actual
           MAIN_FILE=$(find app/src/main/ -name "MainActivity.java" -o -name "XServerView.java" -o -name "XServerDisplayActivity.java" | head -n 1)
           
           if [ -n "$MAIN_FILE" ] && [ -f "$MAIN_FILE" ]; then
@@ -68,10 +67,9 @@ jobs:
           fi
 
           # Añadimos compatibilidad de variables globales en los recursos de texto
-          find app/src/main/ -name "strings.xml" -exec sed -i 's|</resources>|  <string name="default_malloc_trim">65536</string>\n  <string name="default_dxvk_filter">Mali</string>\n</resources>|g' {} + || true
+          find app/src/main/ prefix "strings.xml" -exec sed -i 's|</resources>|  <string name="default_malloc_trim">65536</string>\n  <string name="default_dxvk_filter">Mali</string>\n</resources>|g' {} + || true
           
           # === PARCHE DE AUDIO ADAPTATIVO AUDIO_PLUGIN ===
-          # Buscamos tu archivo de audio nativo en la carpeta raíz audio_plugin de la rama 4.1
           AUDIO_C_FILE=$(find audio_plugin/ -name "*.c" | head -n 1)
           if [ -n "$AUDIO_C_FILE" ] && [ -f "$AUDIO_C_FILE" ]; then
             echo "-> Analizando optimizaciones sobre el driver de sonido nativo: $AUDIO_C_FILE"
@@ -86,7 +84,6 @@ jobs:
       - name: Compilar el APK Oficial Modificado (Variante Debug Nativa 4.1)
         run: |
           ./gradlew clean
-          # Adaptamos la tarea de Gradle al comando estándar "assembleDebug" que usa tu build.gradle de la rama 4.1
           ./gradlew assembleDebug \
             --no-daemon \
             -Dorg.gradle.daemon=false \
