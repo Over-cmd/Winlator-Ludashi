@@ -1,4 +1,4 @@
-name: 🚀 Compilador de Winlator Ludashi Desde Mi Fork original 
+name: 🚀 Compilador de Winlator Ludashi Desde Mi Fork
 
 on:
   workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
@@ -23,11 +23,8 @@ jobs:
 
       - name: 3. Configurar Android SDK Nativo del Servidor
         run: |
-          # Enlazamos las variables preinstaladas para evitar herramientas obsoletas
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/26.1.10909125" >> $GITHUB_ENV
-          
-          # Aceptamos las licencias de Google de forma automática
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
@@ -35,8 +32,10 @@ jobs:
 
       - name: 5. Ejecutar Compilación Pura y Nativa de Fábrica (Variante 3.1)
         run: |
-          # Desactivamos detenciones por advertencias menores para asegurar el empaquetado plano
-          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers"
+          # 🚀 ENLAZADOR GRÁFICO BLINDADO 3.1:
+          # Inyectamos en las banderas del compilador la ruta de las cabeceras de Vulkan y Mesa
+          # para que Clang localice 'vk_context.h' en las subcarpetas del proyecto aunque el submódulo falle.
+          export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I/home/runner/work/Winlator-Ludashi/Winlator-Ludashi/app/src/main/cpp/winlator"
           export CXXFLAGS="-Wno-error"
           ./gradlew assembleDebug --no-daemon
 
