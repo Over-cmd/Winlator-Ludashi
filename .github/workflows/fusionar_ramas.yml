@@ -15,9 +15,9 @@ jobs:
           fetch-depth: 0          # Evita errores de recorte en el árbol de Git histórico
           submodules: 'recursive' # Intento inicial de clonación de submódulos
 
-      - name: 🛠️ 1.5. Forzar Inicialización Profunda de Submódulos (Fix vk_context.h)
+      - name: 🛠️ 1.5. Forzar Sincronización de Submódulos (Fix vk_context.h)
         run: |
-          echo "🔄 Limpiando y sincronizando submódulos de forma estricta..."
+          echo "🔄 Sincronizando submódulos profundamente..."
           git submodule sync --recursive
           git submodule update --init --recursive --force --depth=1
 
@@ -27,27 +27,32 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: 3. Configurar Android SDK e Instalar NDK Estable para la v3.1
+      - name: 3. Configurar Android SDK e Instalar NDK 25
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
-          echo "📥 Descargando e instalando NDK 25 correspondiente..."
+          echo "📥 Descargando e instalando NDK 25 estable..."
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "ndk;25.2.9519653" > /dev/null || true
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> $GITHUB_ENV
 
-      - name: 🛠️ 3.8. Forzar Bloqueo de Rutas mediante local.properties (Anular NDK 29)
+      - name: 🛠️ 3.5. Forzar Inyección de NDK en Archivos de Configuración (Anular NDK 29)
         run: |
-          echo "📝 Escribiendo archivo local.properties para anular la configuración global de GitHub..."
+          echo "📝 Forzando rutas rígidas en local.properties..."
           echo "sdk.dir=$ANDROID_HOME" > local.properties
           echo "ndk.dir=$ANDROID_HOME/ndk/25.2.9519653" >> local.properties
-          cat local.properties
+          
+          echo "🛠️ Modificando app/build.gradle para forzar ndkVersion 25..."
+          # Reemplaza cualquier declaración de ndkVersion por la versión 25 nativa instalada
+          sed -i 's/ndkVersion .*/ndkVersion "25.2.9519653"/g' app/build.gradle
+          
+          echo "🔍 Verificando cambio en app/build.gradle:"
+          grep "ndkVersion" app/build.gradle || echo "No se encontró la línea, se inyectará dinámicamente."
 
       - name: 🚀 3.9. Instalar Compilador de Shaders Vulkan (glslangValidator Fix)
         run: |
-          echo "📥 Instalando glslang-tools nativo en el Kernel de Ubuntu..."
+          echo "📥 Instalando glslang-tools nativo..."
           sudo apt-get update -y
           sudo apt-get install -y glslang-tools
-          echo "✅ Verificando instalación:"
           glslangValidator -v
 
       - name: 4. Conceder Permisos de Ejecución al Compilador Gradle
@@ -55,23 +60,22 @@ jobs:
 
       - name: 5. Ejecutar Compilación Pura y Nativa con Inyección de Cabeceras
         run: |
-          # Localizamos la ruta de vk_context.h dentro de adrenotools/src e incluimos su directorio en CFLAGS/CXXFLAGS
+          # Agregamos la ruta interna de adrenotools a las banderas de C++
           ADRENOTOOLS_SRC_DIR=$(find $(pwd) -type d -name "src" | grep "adrenotools" | head -n 1 || echo "")
-          
           if [ -n "$ADRENOTOOLS_SRC_DIR" ]; then
-            echo "🎯 Directorio interno de adrenotools localizado en: $ADRENOTOOLS_SRC_DIR"
+            echo "🎯 Cabeceras adrenotools localizadas en: $ADRENOTOOLS_SRC_DIR"
             export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I$ADRENOTOOLS_SRC_DIR"
             export CXXFLAGS="-Wno-error -I$ADRENOTOOLS_SRC_DIR"
           else
-            echo "⚠️ No se localizó un directorio src específico dentro de adrenotools de manera automática."
             export CFLAGS="-Wno-error -Wno-incompatible-pointer-types-discards-qualifiers -I$(pwd)/app/src/main/cpp/adrenotools/src"
-            export CXXFLAGS="-Wno-error -I$(pwd)/app/src/main/cpp/adrenotools/src"
+            export CXXFLAGS="-Wno-error -I$(pwd)/adrenotools/src"
           fi
           
-          # Compilación forzando parámetros estrictos de Gradle
+          # Compilación forzada ignorando alertas estrictas de compatibilidad
           ./gradlew assembleDebug --no-daemon \
             -Pandroid.sdk.dir=$ANDROID_HOME \
-            -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653
+            -Pandroid.ndk.dir=$ANDROID_HOME/ndk/25.2.9519653 \
+            -Pandroid.ndkVersion="25.2.9519653"
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/25.2.9519653
@@ -85,5 +89,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Bionic-Ludashi-3.1-Original
-          path: app/build/outputs/apk/debug/*.apk  # Apunta directo al directorio de debug limpio
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
