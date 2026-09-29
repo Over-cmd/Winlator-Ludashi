@@ -216,8 +216,7 @@ static snd_pcm_sframes_t android_aserver_transfer(snd_pcm_ioplug_t* io, const sn
     int request_length = size * android_aserver->frame_bytes;
 
     if (android_aserver->use_shm) {
-        // 🛡️ MODO SHM DE FÁBRICA: Restauramos la lógica original limpia para evitar
-        // desbordamientos de memoria mapeada y bloqueos en el arranque del juego.
+        // 🛡️ MODO SHM DE FÁBRICA: Lógica original limpia para evitar bloqueos
         char request_data[MIN_REQUEST_LENGTH];
         request_data[0] = REQUEST_CODE_WRITE;
         memcpy(request_data + 1, &request_length, 4);
@@ -225,17 +224,23 @@ static snd_pcm_sframes_t android_aserver_transfer(snd_pcm_ioplug_t* io, const sn
         if (res < 0) return 0;
     }
     else {
-        // 🚀 MEJORA CRÍTICA MALI-AUDIO (MODO UNIFICADO EMULADO):
-        // Creamos un búfer combinado en la pila para fusionar la cabecera y el audio.
-        // Esto elimina la fragmentación por red interna y evita los micro-retrasos en cinemáticas.
+        // 🚀 MEJORA CRÍTICA MALI-AUDIO COMPACTA PROTEGIDA:
+        // Usamos malloc() en lugar de la pila para soportar paquetes de audio masivos
+        // en cinemáticas pesadas sin provocar desbordamientos (Stack Overflow).
         int total_packet_size = MIN_REQUEST_LENGTH + request_length;
-        char single_packet[total_packet_size];
+        char* single_packet = (char*)malloc(total_packet_size);
+        
+        if (!single_packet) return 0; // Protección si la RAM está llena
 
         single_packet[0] = REQUEST_CODE_WRITE;
         memcpy(single_packet + 1, &request_length, 4);
         memcpy(single_packet + MIN_REQUEST_LENGTH, data, request_length);
 
         int res = write(android_aserver->fd, single_packet, total_packet_size);
+        
+        // 🛑 LIBERACIÓN OBLIGATORIA: Devolvemos la memoria para evitar fugas (Memory Leaks)
+        free(single_packet);
+        
         if (res < 0) return 0;
     }
 
