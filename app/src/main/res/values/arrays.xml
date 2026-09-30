@@ -316,4 +316,24 @@
         <item>CAS</item>
         <item>DLS</item>
     </string-array>
+    <!-- 🚀 DESBLOQUEO TOTAL MALI-G52 DESDE TUS CAPTURAS REALES -->
+    <string-array name="mali_vulkan_extensions_v1">
+        <item>GL_KHR_robustness</item>
+        <item>GL_KHR_robust_buffer_access_behavior</item>
+        <item>GL_EXT_buffer_storage</item>
+        <item>GL_EXT_external_buffer</item>
+        <item>GL_EXT_EGL_image_array</item>
+        <item>GL_OES_texture_storage_multisample_2d_array</item>
+        <item>GL_EXT_texture_cube_map_array</item>
+        <item>GL_EXT_tessellation_shader</item>
+        <item>GL_EXT_geometry_shader</item>
+        <item>GL_KHR_texture_compression_astc_ldr</item>
+        <item>GL_KHR_texture_compression_astc_hdr</item>
+        <item>GL_EXT_texture_compression_astc_decode_mode</item>
+        <item>GL_ARM_shader_framebuffer_fetch</item>
+        <item>GL_ARM_shader_framebuffer_fetch_depth_stencil</item>
+        <item>GL_ARM_mali_program_binary</item>
+        <item>GL_OES_EGL_image_external_essl3</item>
+    </string-array>
 </resources>
+
