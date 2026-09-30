@@ -63,7 +63,10 @@ public class MultiSelectionComboBox extends AppCompatTextView {
     }
 
     public void setSelectedItem(String item) {
-        if (selectedItemSet.contains(item)) selectedItemSet.add(item);
+        // 🚀 CORRECCIÓN DE CONJUNTOS MALI-AUDIO:
+        // Corregimos la lógica invertida. Si el conjunto NO contiene la extensión, 
+        // la añadimos de forma legítima para que se sume al contador visual.
+        if (!selectedItemSet.contains(item)) selectedItemSet.add(item);
         if (!text.isEmpty())
             setText(selectedItemSet.size() + " " + text);
         else
@@ -71,6 +74,7 @@ public class MultiSelectionComboBox extends AppCompatTextView {
     }
 
     public void unsetSelectedItem(String item) {
+        // Removemos de forma directa y segura. Si existe en el set, se limpia.
         if (selectedItemSet.contains(item)) selectedItemSet.remove(item);
         if (!text.isEmpty())
             setText(selectedItemSet.size() + " " + text);
