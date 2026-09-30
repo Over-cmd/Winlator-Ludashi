@@ -207,7 +207,10 @@ public class GraphicsDriverConfigDialog extends ContentDialog {
                 String[] bl = blacklistedExtensions.split("\\,");
 
                 for (String extension : bl) {
-                    mscAvailableExtensions.unsetSelectedItem(extension);
+                    // 🚀 MEJORA VISUAL MALI:
+                    // Comentamos esta línea para anular el desmarcado automático.
+                    // Al no borrar nada de la lista, el menú gris saltará por fin a tus 74 extensiones reales.
+                    // mscAvailableExtensions.unsetSelectedItem(extension);
                 }
             }
 
