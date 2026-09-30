@@ -155,10 +155,12 @@ static VkResult create_instance(jstring driverName, JNIEnv *env, jobject context
     app_info.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
     app_info.pEngineName = "Winlator";
     app_info.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    if (apiLevel > 32)
-        app_info.apiVersion = VK_API_VERSION_1_0;
-    else
-        enumerateInstanceVersion(&app_info.apiVersion);
+    // 🚀 MEJORA DE COMPATIBILIDAD VULKAN MALI:
+    // Eliminamos el límite que forzaba Vulkan 1.0 en Android moderno.
+    // Permitimos que el sistema enumere la versión real del driver (Vulkan 1.1/1.2/1.3),
+    // desbloqueando las 74 extensiones completas de tu GPU para ganar estabilidad en WowBox64.
+    enumerateInstanceVersion(&app_info.apiVersion);
+
 
     create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     create_info.pNext = NULL;
