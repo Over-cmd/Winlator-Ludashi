@@ -1,4 +1,4 @@
-name: 🚀 Compilador Winlator Ludashi 3.1 Original
+name: 🚀 Compilador Winlator Ludashi 3.1 Original con Parche PulseAudio 17.0
 
 on:
   workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
@@ -26,20 +26,54 @@ jobs:
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
-      - name: 4. Instalar Herramientas de Compilación del Sistema
+      - name: 4. Instalar Herramientas de Compilación del Sistema (Añadido ZSTD para el molde)
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools
+          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd
 
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Ejecutar Compilación Estándar de Gradle
+      - name: 6. Parchear y Limpiar el Molde del Contenedor (container_pattern_common.tzst)
+        run: |
+          echo "=== Iniciando el parcheo del molde de la RootFS ==="
+          BASE_DIR="$PWD"
+          ASSETS_DIR="$BASE_DIR/app/src/main/assets"
+          JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
+          TMP_DIR="$BASE_DIR/tmp_pattern"
+
+          # 1. Crear directorio temporal y desempaquetar el molde de tus assets
+          mkdir -p "$TMP_DIR"
+          tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
+
+          # 2. Purgar físicamente las librerías muertas de la versión 13.0
+          echo "-> Eliminando librerías antiguas 13.0 del molde..."
+          rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
+          rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
+
+          # 3. Inyectar las nuevas librerías 17.0 tomadas directamente de tu carpeta jniLibs
+          echo "-> Inyectando nuevas librerías 17.0 de jniLibs al molde..."
+          mkdir -p "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
+
+          # 4. Volver a empaquetar el molde con máxima compresión ZSTD usando todos los hilos
+          echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
+          cd "$TMP_DIR"
+          tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
+
+          # 5. Limpieza de residuos en el runner
+          cd "$BASE_DIR"
+          rm -rf "$TMP_DIR"
+          echo "=== ¡Molde actualizado con PulseAudio 17.0 con éxito! ==="
+
+      - name: 7. Ejecutar Compilación Estándar de Gradle
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: 7. Subir APK Compilado como Artefacto
+      - name: 8. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: Winlator-Ludashi-3.1-Original-APK
+          name: Winlator-Ludashi-3.1-PulseAudio17-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
