@@ -48,8 +48,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
     
     private void copyFromLibraryDir(File dst) {
         String[] libs = new String[] {
-            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-13.0.so", "libpulsecore-13.0.so", "libsndfile.so"
-        };
+    "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
+};
         for (int i = 0; i < libs.length; i++) {
             String path = "lib/" + "arm64-v8a" + "/" + libs[i];
             ClassLoader loader = PulseAudioComponent.class.getClassLoader();
@@ -84,7 +84,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
         ));
 
         String archName = AppUtils.getArchName();
-        File modulesDir = new File(workingDir, "modules/"+archName);
+        File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
         ArrayList<String> envVars = new ArrayList<>();
