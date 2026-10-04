@@ -47,8 +47,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
+        // CORREGIDO: Nombres limpios sin números de versión intermedios para cumplir con las reglas de Android Bionic
         String[] libs = new String[] {
-            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
+            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon.so", "libpulsecore.so", "libsndfile.so"
         };
         for (int i = 0; i < libs.length; i++) {
             String path = "lib/" + "arm64-v8a" + "/" + libs[i];
@@ -76,7 +77,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // CORREGIDO: Archivo default.pa limpio y compatible sin parámetros que crasheen
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
@@ -88,17 +88,15 @@ public class PulseAudioComponent extends EnvironmentComponent {
         File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
-        // CORREGIDO: Inyección paralela usando LD_PRELOAD para forzar la carga de los componentes mutuos
-        // asegurando que el linker resuelva las firmas con números intermedios sin ignorar directorios.
+        // CORREGIDO: Se eliminan las restricciones del linker forzando la carga de los alias limpios
         ArrayList<String> envVars = new ArrayList<>();
         envVars.add("LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath);
-        envVars.add("LD_PRELOAD=" + workingDir.getAbsolutePath() + "/libpulsecommon-17.0.so:" + workingDir.getAbsolutePath() + "/libpulsecore-17.0.so");
+        envVars.add("LD_PRELOAD=" + workingDir.getAbsolutePath() + "/libpulsecommon.so:" + workingDir.getAbsolutePath() + "/libpulsecore.so");
         envVars.add("HOME=" + workingDir.getAbsolutePath());
         envVars.add("TMPDIR=" + environment.getTmpDir());
         
         copyFromLibraryDir(workingDir);
 
-        // CORRECCIÓN SINTÁCTICA DE EJECUCIÓN: Invocación robusta mediante el linker nativo de 64 bits de Android
         String command = "/system/bin/linker64 " + workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
@@ -108,7 +106,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
         command += " --use-pid-file=false";
         command += " --exit-idle-time=-1";
 
-        // CORREGIDO: Cierre sintáctico correcto (new String[0]) para evitar error de Gradle
         return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
     }
 }
