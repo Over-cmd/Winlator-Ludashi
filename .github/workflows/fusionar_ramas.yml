@@ -30,18 +30,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd
-          
-      - name: Parchear Cabeceras Binarias (Fix de Nombres para Android Linker)
-        run: |
-          JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
-          cd "$JNILIBS_DIR"
-          patchelf --set-soname libpulsecommon.so libpulsecommon.so
-          patchelf --set-soname libpulsecore.so libpulsecore.so
-          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
-          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
-          patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
-          cd ../../../..
-          
+
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
@@ -62,11 +51,11 @@ jobs:
           rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
           rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
 
-          # 3. Inyectar las nuevas librerías 17.0 tomadas directamente de tu carpeta jniLibs
-          echo "-> Inyectando nuevas librerías 17.0 de jniLibs al molde..."
+          # 3. Inyectar las nuevas librerías 17.0 (Tomadas con su nombre original con guion)
+          echo "-> Inyectando nuevas librerías al molde..."
           mkdir -p "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/libpulsecommon.so"
+          cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/libpulsecore.so"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
           # 4. Volver a empaquetar el molde con máxima compresión ZSTD usando todos los hilos
@@ -78,6 +67,28 @@ jobs:
           cd "$BASE_DIR"
           rm -rf "$TMP_DIR"
           echo "=== ¡Molde actualizado con PulseAudio 17.0 con éxito! ==="
+
+      - name: 6.5. Renombrar y Parchear Cabeceras Binarias (Fix Estricto de Android Linker)
+        run: |
+          echo "=== Iniciando el remapeo de dependencias internas ==="
+          JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
+          cd "$JNILIBS_DIR"
+          
+          # 1. Modificar los bytes internos de los ejecutables nativos antes de que cambien de nombre
+          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
+          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
+          patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
+          
+          # 2. Renombrar físicamente los archivos para que cumplan con la regla de Android Bionic
+          mv libpulsecommon-17.0.so libpulsecommon.so
+          mv libpulsecore-17.0.so libpulsecore.so
+          
+          # 3. Forzar el cambio de identidad interna (SONAME) para que coincida
+          patchelf --set-soname libpulsecommon.so libpulsecommon.so
+          patchelf --set-soname libpulsecore.so libpulsecore.so
+          
+          echo "=== ¡Cabeceras binarias y nombres actualizados con éxito! ==="
+          cd ../../../..
 
       - name: 7. Ejecutar Compilación Estándar de Gradle
         run: ./gradlew assembleDebug --no-daemon
