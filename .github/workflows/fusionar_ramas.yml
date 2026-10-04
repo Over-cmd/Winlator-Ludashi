@@ -51,11 +51,11 @@ jobs:
           rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
           rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
 
-          # 3. Inyectar las nuevas librerías 17.0 (Tomadas con su nombre original con guion)
+          # 3. Inyectar las nuevas librerías 17.0 (Tomadas con sus nombres limpios del repositorio)
           echo "-> Inyectando nuevas librerías al molde..."
           mkdir -p "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/libpulsecommon.so"
-          cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/libpulsecore.so"
+          cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
           # 4. Volver a empaquetar el molde con máxima compresión ZSTD usando todos los hilos
@@ -68,26 +68,22 @@ jobs:
           rm -rf "$TMP_DIR"
           echo "=== ¡Molde actualizado con PulseAudio 17.0 con éxito! ==="
 
-      - name: 6.5. Renombrar y Parchear Cabeceras Binarias (Fix Estricto de Android Linker)
+      - name: 6.5. Parchear Cabeceras Binarias Internas (Alineación con Nombres Limpios del Repositorio)
         run: |
-          echo "=== Iniciando el remapeo de dependencias internas ==="
+          echo "=== Iniciando el remapeo de dependencias de bytes internos ==="
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
           cd "$JNILIBS_DIR"
           
-          # 1. Modificar los bytes internos de los ejecutables nativos antes de que cambien de nombre
+          # 1. Modificar los bytes internos de los ejecutables para que busquen los nombres limpios
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
           patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
           
-          # 2. Renombrar físicamente los archivos para que cumplan con la regla de Android Bionic
-          mv libpulsecommon-17.0.so libpulsecommon.so
-          mv libpulsecore-17.0.so libpulsecore.so
-          
-          # 3. Forzar el cambio de identidad interna (SONAME) para que coincida
+          # 2. Forzar el cambio de identidad interna (SONAME) para el enlazador de Android Bionic
           patchelf --set-soname libpulsecommon.so libpulsecommon.so
           patchelf --set-soname libpulsecore.so libpulsecore.so
           
-          echo "=== ¡Cabeceras binarias y nombres actualizados con éxito! ==="
+          echo "=== ¡Cabeceras binarias internas actualizadas con éxito! ==="
           cd ../../../..
 
       - name: 7. Ejecutar Compilación Estándar de Gradle
