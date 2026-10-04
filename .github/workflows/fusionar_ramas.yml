@@ -30,7 +30,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd
-
+          
+      - name: Parchear Cabeceras Binarias (Fix de Nombres para Android Linker)
+        run: |
+          JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
+          cd "$JNILIBS_DIR"
+          patchelf --set-soname libpulsecommon.so libpulsecommon.so
+          patchelf --set-soname libpulsecore.so libpulsecore.so
+          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
+          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
+          patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
+          cd ../../../..
+          
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
