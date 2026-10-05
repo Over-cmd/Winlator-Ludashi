@@ -11,8 +11,8 @@ jobs:
       - name: 1. Descargar Código Fuente de la Rama ludashi-3.1
         uses: actions/checkout@v4
         with:
-          ref: 'ludashi-3.1'       # Descarga la rama 3.1 original
-          submodules: 'recursive' # Inicializa y clona todos los submódulos de fábrica automáticamente
+          ref: 'ludashi-3.1'
+          submodules: 'recursive'
 
       - name: 2. Configurar Entorno de Java (JDK 17)
         uses: actions/setup-java@v4
@@ -21,12 +21,12 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Aceptar Licencias de Android SDK Nativo (Reemplazo Fix de Acción Rota)
+      - name: 3. Aceptar Licencias de Android SDK Nativo
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
-      - name: 4. Instalar Herramientas de Compilación del Sistema (Añadido ZSTD para el molde)
+      - name: 4. Instalar Herramientas de Compilación del Sistema
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd
@@ -34,23 +34,18 @@ jobs:
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Parchear Cabeceras Binarias Internas (Alineación con Nombres Limpios del Repositorio)
+      - name: 6. Parchear Cabeceras Binarias Internas
         run: |
-          echo "=== Iniciando el remapeo de dependencias de bytes internos ==="
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
           cd "$JNILIBS_DIR"
-          
-          # Modificar los bytes internos de los ejecutables para que busquen los nombres limpios
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
           patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
-          
-          # Forzar el cambio de identidad interna (SONAME) para el enlazador de Android Bionic
           patchelf --set-soname libpulsecommon.so libpulsecommon.so
           patchelf --set-soname libpulsecore.so libpulsecore.so
           cd ../../../..
 
-      - name: 7. Ejecutar Parche de ALSA, asound.conf y Moldear Assets
+      - name: 7. Ejecutar Parche de ALSA y Moldear Assets desde Script
         run: |
           chmod +x parchear_molde.sh
           ./parchear_molde.sh
