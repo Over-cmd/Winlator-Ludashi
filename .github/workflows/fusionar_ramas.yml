@@ -36,9 +36,22 @@ jobs:
 
       - name: 6. Forzar a Gradle a descargar los Assets Originales de Fábrica
         run: |
-          echo "=== Ejecutando tareas de descarga oficiales de Gradle ==."
+          echo "=== Ejecutando tareas de descarga oficiales de Gradle ==="
           ./gradlew downloadImageFS --no-daemon || true
           ./gradlew downloadProton --no-daemon || true
+
+      - name: 6.5. Hackear CMakeLists.txt (Bloquear descarga e inyección de PulseAudio 13)
+        run: |
+          echo "=== Interceptando configuraciones rígidas de CMake ==="
+          # Busca de forma masiva cualquier archivo CMakeLists.txt en el repositorio
+          find . -name "CMakeLists.txt" | while read -r cmake_file; do
+            echo "  -> Revisando y parchando: $cmake_file"
+            # 1. Bloquea descargas remotas de la versión 13.0 reemplazándolas por texto muerto o saltos
+            sed -i 's/13.0/17.0/g' "$cmake_file"
+            sed -i 's/pulse-13.0/pulseaudio/g' "$cmake_file"
+            # 2. Si CMake intenta descargar repositorios externos con URL muertas de la versión 13, las desvía
+            sed -i 's|pulseaudio-13.0|pulseaudio-17.0|g' "$cmake_file"
+          done
 
       - name: 7. Parchear Cabeceras Binarias Internas (SONAME Fix)
         run: |
