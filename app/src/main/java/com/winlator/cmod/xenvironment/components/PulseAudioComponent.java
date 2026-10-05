@@ -47,7 +47,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
-        // CORREGIDO: Nombres limpios sin números de versión intermedios para cumplir con las reglas de Android Bionic
+        // CORREGIDO: Nombres limpios sin números de versión intermedios para sincronizar con tu repositorio
         String[] libs = new String[] {
             "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon.so", "libpulsecore.so", "libsndfile.so"
         };
@@ -77,6 +77,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
+        // CORREGIDO EXCLUSIVAMENTE PARA PA 17.0: Se remueve auth-cookie-enabled=0 para evitar que el demonio aborte por conflicto de red
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
@@ -85,19 +86,18 @@ public class PulseAudioComponent extends EnvironmentComponent {
         ));
 
         String archName = AppUtils.getArchName();
+        // AJUSTADO PARA PA 17.0: La estructura interna de carpetas que exige el binario de Meson
         File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
-        // CORREGIDO: Se eliminan las restricciones del linker forzando la carga de los alias limpios
         ArrayList<String> envVars = new ArrayList<>();
-        envVars.add("LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath);
-        envVars.add("LD_PRELOAD=" + workingDir.getAbsolutePath() + "/libpulsecommon.so:" + workingDir.getAbsolutePath() + "/libpulsecore.so");
-        envVars.add("HOME=" + workingDir.getAbsolutePath());
-        envVars.add("TMPDIR=" + environment.getTmpDir());
+        envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
+        envVars.add("HOME="+workingDir);
+        envVars.add("TMPDIR="+environment.getTmpDir());
         
         copyFromLibraryDir(workingDir);
 
-        String command = "/system/bin/linker64 " + workingDir.getAbsolutePath() + "/libpulseaudio.so";
+        String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
         command += " --fail=false";
