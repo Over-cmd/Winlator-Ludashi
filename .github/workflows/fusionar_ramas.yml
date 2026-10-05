@@ -40,70 +40,20 @@ jobs:
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
           cd "$JNILIBS_DIR"
           
-          # 1. Modificar los bytes internos de los ejecutables para que busquen los nombres limpios
+          # Modificar los bytes internos de los ejecutables para que busquen los nombres limpios
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
           patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
           
-          # 2. Forzar el cambio de identidad interna (SONAME) para el enlazador de Android Bionic
+          # Forzar el cambio de identidad interna (SONAME) para el enlazador de Android Bionic
           patchelf --set-soname libpulsecommon.so libpulsecommon.so
           patchelf --set-soname libpulsecore.so libpulsecore.so
-          
-          echo "=== ¡Cabeceras binarias internas actualizadas con éxito! ==="
           cd ../../../..
 
-      - name: 7. Reparar Pila de ALSA, asound.conf y Parchear Molde (Fix de Driver: None)
+      - name: 7. Ejecutar Parche de ALSA, asound.conf y Moldear Assets
         run: |
-          echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio in el molde ==="
-          BASE_DIR="$PWD"
-          ASSETS_DIR="$BASE_DIR/app/src/main/assets"
-          JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
-          TMP_DIR="$BASE_DIR/tmp_pattern"
-
-          # 1. Crear directorio temporal y desempaquetar el molde de tus assets
-          mkdir -p "$TMP_DIR"
-          tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
-
-          # 2. Purgar físicamente las librerías obsoletas de la versión 13.0
-          echo "-> Eliminando residuos obsoletos del molde..."
-          rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
-          rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
-          rm -f "$TMP_DIR/home/xuser/libpulse"* || true
-
-          # 3. Inyectar las 3 librerías compartidas (Ya perfectamente parcheadas por patchelf)
-          echo "-> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
-          mkdir -p "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
-
-          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Comandos echo individuales ultra-seguros)
-          echo "-> Creando archivo de configuración maestro asound.conf..."
-          mkdir -p "$TMP_DIR/etc"
-          echo 'pcm.!default {' > "$TMP_DIR/etc/asound.conf"
-          echo '    type android_aserver' >> "$TMP_DIR/etc/asound.conf"
-          echo '    socket "/tmp/pulse-socket"' >> "$TMP_DIR/etc/asound.conf"
-          echo '}' >> "$TMP_DIR/etc/asound.conf"
-          echo 'ctl.!default {' >> "$TMP_DIR/etc/asound.conf"
-          echo '    type android_aserver' >> "$TMP_DIR/etc/asound.conf"
-          echo '    socket "/tmp/pulse-socket"' >> "$TMP_DIR/etc/asound.conf"
-          echo '}' >> "$TMP_DIR/etc/asound.conf"
-
-          # 5. CONFIGURAR CLIENT.CONF GLOBAL
-          echo "-> Configurando directivas del cliente de audio para PA 17.0..."
-          mkdir -p "$TMP_DIR/etc/pulse"
-          echo 'default-server = unix:/tmp/pulse-socket' > "$TMP_DIR/etc/pulse/client.conf"
-          echo 'enable-shm = no' >> "$TMP_DIR/etc/pulse/client.conf"
-
-          # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
-          echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
-          cd "$TMP_DIR"
-          tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
-
-          # 7. Limpieza de residuos en el runner
-          cd "$BASE_DIR"
-          rm -rf "$TMP_DIR"
-          echo "=== ¡Pila de ALSA, asound.conf y librerías parcheadas listas en el molde! ==="
+          chmod +x parchear_molde.sh
+          ./parchear_molde.sh
 
       - name: 8. Ejecutar Compilación Estándar de Gradle
         run: ./gradlew assembleDebug --no-daemon
