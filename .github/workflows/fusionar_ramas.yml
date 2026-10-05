@@ -34,16 +34,10 @@ jobs:
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Descargar RootFS Base Original (imagefs.tzst) Directamente a Assets
+      - name: 6. Forzar a Gradle a descargar la RootFS Real de Fábrica
         run: |
-          echo "=== Descargando la RootFS original de internet ==="
-          ASSETS_DIR="app/src/main/assets"
-          mkdir -p "$ASSETS_DIR"
-          
-          # Buscamos la URL oficial de la RootFS que usa tu compilador
-          # NOTA: Si tu fork usa una URL específica de descarga, puedes cambiar este enlace.
-          curl -L -o "$ASSETS_DIR/imagefs.tzst" "https://github.com" || \
-          curl -L -o "$ASSETS_DIR/imagefs.tzst" "https://github.com" || true
+          echo "=== Descargando la RootFS real desde el servidor oficial de Gradle ==="
+          ./gradlew downloadImageFS --no-daemon
 
       - name: 6.5. Hackear CMakeLists.txt (Bloquear inyecciones de PulseAudio 13 residuales)
         run: |
