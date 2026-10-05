@@ -77,7 +77,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // CORREGIDO EXCLUSIVAMENTE PARA PA 17.0: Se remueve auth-cookie-enabled=0 para evitar que el demonio aborte por conflicto de red
+        // Archivo default.pa limpio y compatible sin parámetros que crasheen
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
@@ -86,10 +86,10 @@ public class PulseAudioComponent extends EnvironmentComponent {
         ));
 
         String archName = AppUtils.getArchName();
-        // AJUSTADO PARA PA 17.0: La estructura interna de carpetas que exige el binario de Meson
         File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
+        // Mantenemos las variables de entorno tradicionales
         ArrayList<String> envVars = new ArrayList<>();
         envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
         envVars.add("HOME="+workingDir);
@@ -97,15 +97,21 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
-        String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
-        command += " --system=false";
-        command += " --disable-shm=true";
-        command += " --fail=false";
-        command += " -n --file=default.pa";
-        command += " --daemonize=false";
-        command += " --use-pid-file=false";
-        command += " --exit-idle-time=-1";
+        // CORRECCIÓN ABSOLUTA DE ARRANQUE PARA PA 17.0:
+        // Inyectamos de forma obligatoria el LD_LIBRARY_PATH justo al inicio del comando de ejecución
+        // para que el enlazador dinámico de Android no ignore las librerías mutuas (libpulse.so) al despertar el binario.
+        String command = "env LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath +
+                         " " + workingDir.getAbsolutePath() + "/libpulseaudio.so" +
+                         " --system=false" +
+                         " --disable-shm=true" +
+                         " --fail=false" +
+                         " -n --file=" + workingDir.getAbsolutePath() + "/default.pa" +
+                         " --daemonize=false" +
+                         " --use-pid-file=false" +
+                         " --exit-idle-time=-1";
 
-        return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
+        // Ejecutar usando el subproceso sh nativo para que interprete el comando expandido
+        String[] finalArgs = {"/system/bin/sh", "-c", command};
+        return ProcessHelper.exec(finalArgs, envVars.toArray(new String[0]), workingDir);
     }
 }
