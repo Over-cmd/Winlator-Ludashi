@@ -16,7 +16,9 @@ parchear_un_molde() {
 
   echo "=== Parcheando el molde: $archivo_molde ==="
   mkdir -p "$tmp_dir"
-  tar -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
+  
+  # Desempaquetar preservando enlaces simbólicos y permisos de Linux
+  tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
   # 1. Purgar físicamente las librerías muertas de la versión 13.0
   echo "  -> Eliminando residuos antiguos 13.0..."
@@ -24,14 +26,14 @@ parchear_un_molde() {
   rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so"
   rm -f "$tmp_dir/home/xuser/libpulse"* || true
 
-  # 2. Inyectar las 3 librerías compartidas de PulseAudio 17.0 (Limpias de patchelf)
+  # 2. Inyectar las 3 librerías compartidas de PulseAudio 17.0
   echo "  -> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
   mkdir -p "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecommon.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
 
-  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Para forzar Driver: alsa)
+  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
   echo "  -> Creando archivo maestro /etc/asound.conf..."
   mkdir -p "$tmp_dir/etc"
   cat << 'EOF' > "$tmp_dir/etc/asound.conf"
@@ -45,7 +47,7 @@ ctl.!default {
 }
 EOF
 
-# 4. CONFIGURAR CLIENT.CONF DE PULSEAUDIO
+  # 4. CONFIGURAR CLIENT.CONF DE PULSEAUDIO
   echo "  -> Configurando directivas en /etc/pulse/client.conf..."
   mkdir -p "$tmp_dir/etc/pulse"
   cat << 'EOF' > "$tmp_dir/etc/pulse/client.conf"
@@ -53,10 +55,12 @@ default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-  # 5. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
-  echo "  -> Recomprimiendo $archivo_molde..."
+  # 5. Volver a cerrar el molde PRESERVANDO ENLACES SIMBÓLICOS (--no-recursion y cpio evitan roturas)
+  echo "  -> Recomprimiendo $archivo_molde sin romper symlinks..."
   cd "$tmp_dir"
-  tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
+  
+  # Forzar a tar a guardar los enlaces simbólicos de forma nativa sin desreferenciarlos
+  find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
   # Limpieza
   cd "$BASE_DIR"
@@ -67,4 +71,4 @@ EOF
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-echo "=== ¡Todos los moldes de assets actualizados con éxito con PulseAudio 17.0! ==="
+echo "=== ¡Todos los moldes de assets actualizados con éxito con PulseAudio 17.0 sin romper enlaces! ==="
