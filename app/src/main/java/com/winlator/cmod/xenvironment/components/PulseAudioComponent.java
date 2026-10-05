@@ -77,10 +77,10 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // 1. Archivo default.pa limpio y compatible sin parámetros que crasheen
+        // CORREGIDO: Se habilita el protocolo TCP local nativo en el puerto estándar 4713
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
-            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
+            "load-module module-native-protocol-tcp auth-anonymous=1 listen=127.0.0.1 port=4713",
             "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
