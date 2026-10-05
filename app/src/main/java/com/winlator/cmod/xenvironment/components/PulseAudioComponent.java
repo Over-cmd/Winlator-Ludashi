@@ -97,9 +97,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
-        // CORRECCIÓN ABSOLUTA DE ARRANQUE PARA PA 17.0:
-        // Inyectamos de forma obligatoria el LD_LIBRARY_PATH justo al inicio del comando de ejecución
-        // para que el enlazador dinámico de Android no ignore las librerías mutuas (libpulse.so) al despertar el binario.
+        // CORRECCIÓN ABSOLUTA: Inyectamos el LD_LIBRARY_PATH pegado al inicio del comando como texto plano.
+        // Esto permite invocar el subproceso sh de forma compatible con la firma String de ProcessHelper.exec
         String command = "env LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath +
                          " " + workingDir.getAbsolutePath() + "/libpulseaudio.so" +
                          " --system=false" +
@@ -110,8 +109,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
                          " --use-pid-file=false" +
                          " --exit-idle-time=-1";
 
-        // Ejecutar usando el subproceso sh nativo para que interprete el comando expandido
-        String[] finalArgs = {"/system/bin/sh", "-c", command};
-        return ProcessHelper.exec(finalArgs, envVars.toArray(new String[0]), workingDir);
+        // CORREGIDO: Se pasa el comando final como un String puro usando /system/bin/sh -c
+        String finalCommand = "/system/bin/sh -c \"" + command + "\"";
+        return ProcessHelper.exec(finalCommand, envVars.toArray(new String[0]), workingDir);
     }
 }
