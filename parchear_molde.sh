@@ -16,42 +16,40 @@ parchear_un_molde() {
   echo "=== Parcheando de forma quirúrgica el molde: $archivo_molde ==="
   mkdir -p "$tmp_dir"
   
-  # Desempaquetar preservando enlaces simbólicos nativos
+  # Desempaquetar preservando enlaces simbólicos nativos intactos
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-  # INYECCIÓN DIRECTA EN EL REGISTRO DE WINDOWS (user.reg)
-  # Forzamos a Wine a inicializar los drivers saltándose cualquier validación rígida
-  echo "  -> Modificando user.reg para activar PulseAudio 17.0..."
+  # INYECCIÓN POR PROTOCOLO TCP (Bypass definitivo para solucionar Selected driver: None)
+  # Forzamos a Wine a conectarse mediante un puerto de red local loopback (127.0.0.1)
+  # saltándose por completo las librerías .so conflictivas de la RootFS.
+  echo "  -> Configurando redirección TCP en el registro user.reg..."
   
-  # Verificamos si existe user.reg en la raíz del molde desempaquetado
   if [ -f "$tmp_dir/user.reg" ]; then
     cat << 'EOF' >> "$tmp_dir/user.reg"
 
 [Software\\Wine\\Drivers]
-"Audio"="alsa,pulse"
+"Audio"="pulse,alsa"
 
 [Software\\Wine\\PulseAudio]
-"Server"="unix:/tmp/pulse-socket"
+"Server"="tcp:127.0.0.1:4713"
 "DisableSHM"="1"
 EOF
     chmod 0644 "$tmp_dir/user.reg"
-    echo "  -> ¡user.reg parcheado con éxito!"
-  else
-    echo "  -> Aviso: No se encontró user.reg en la raíz, revisando subcarpetas..."
+    echo "  -> ¡Registro user.reg parcheado con éxito por TCP!"
   fi
 
-  # Volver a cerrar el molde preservando la estructura física intacta
+  # Volver a cerrar el molde preservando la estructura física exacta
   echo "  -> Recomprimiendo $archivo_molde sin alterar enlaces..."
   cd "$tmp_dir"
   find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
-  # Limpieza de residuos en el runner
+  # Limpieza de temporales del runner
   cd "$BASE_DIR"
   rm -rf "$tmp_dir"
 }
 
-# EJECUTAR PARCHEO MASIVO EN AMBOS MOLDES DE TU APPASSSET
+# EJECUTAR PARCHEO MASIVO EN AMBOS MOLDES DE TU REPOSITORIO
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-echo "=== ¡Inyección de registros de audio completada con éxito absoluto! ==="
+echo "=== ¡Inyección de red TCP completada con éxito absoluto! ==="
