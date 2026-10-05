@@ -77,7 +77,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // 1. Archivo default.pa limpio y compatible sin parámetros que crasheen
+        // 1. CORREGIDO PARA PA 17.0: Se remueve auth-cookie-enabled=0 para evitar que el demonio aborte por conflicto de red
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
@@ -89,7 +89,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
         File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
-        // Mantenemos las variables de entorno tradicionales
         ArrayList<String> envVars = new ArrayList<>();
         envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
         envVars.add("HOME="+workingDir.getAbsolutePath());
@@ -97,8 +96,8 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
-        // 2. CORRECCIÓN DEFINITIVA DE AUDIO: Generamos un script de lanzamiento temporal
-        // para esquivar los problemas de escape de comillas y el bloqueo de Android Bionic
+        // 2. CORREGIDO PARA PA 17.0: Se pasa la ruta absoluta completa hacia el archivo default.pa 
+        // para que el servidor localice la configuración del sumidero elástico de AAudio al instante.
         File launchScript = new File(workingDir, "launch.sh");
         FileUtils.writeString(launchScript, String.join("\n",
             "#!/system/bin/sh",
@@ -116,8 +115,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
         ));
         FileUtils.chmod(launchScript, 0771);
 
-        // 3. Invocamos directamente el script temporal pasando la firma String compatible con Gradle
         String finalCommand = launchScript.getAbsolutePath();
-        return ProcessHelper.exec(finalCommand, envVars.toArray(new String[0]), workingDir);
+        return ProcessHelper.exec(finalCommand, envVars.toArray(new String), workingDir);
     }
 }
