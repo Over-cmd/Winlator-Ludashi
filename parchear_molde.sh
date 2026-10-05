@@ -20,31 +20,22 @@ parchear_un_molde() {
   # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-  # 1. PURGA FISICA: Limpiar cualquier residuo estático duplicado
-  echo "  -> Eliminando duplicados antiguos del molde..."
+  # 1. PURGA ABSOLUTA: Forzamos la eliminación total de cualquier rastro o enlace con guion
+  echo "  -> Purgando residuos antiguos y enlaces con números de versión..."
   rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecommon-17.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecore-17.0.so" || true
+  rm -f "$tmp_dir/home/xuser/libpulse"* || true
 
-  # 2. INYECTAR TUS LIBRERÍAS MAESTRAS DE LA VERSIÓN 17.0
+  # 2. INYECTAR TUS LIBRERÍAS MAESTRAS DE LA VERSIÓN 17.0 CON NOMBRE LIMPIO
   echo "  -> Inyectando tus componentes reales a /usr/lib/ ..."
   mkdir -p "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecommon.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
 
-  # 3. EL GRAN TRUCO (ENLACES SIMBÓLICOS): Creamos puentes virtuales para que cualquier
-  # llamada interna a la versión 13.0 o 17.0 lea obligatoriamente tus archivos reales.
-  echo "  -> Generando puentes virtuales de compatibilidad (Symlinks)..."
-  cd "$tmp_dir/usr/lib"
-  ln -sf libpulsecommon.so libpulsecommon-13.0.so
-  ln -sf libpulsecore.so libpulsecore-13.0.so
-  ln -sf libpulsecommon.so libpulsecommon-17.0.so
-  ln -sf libpulsecore.so libpulsecore-17.0.so
-  cd "$BASE_DIR"
-
-  # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
+  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (El cable maestro para conectar con Wine)
   echo "  -> Creando archivo maestro de sistema /etc/asound.conf..."
   mkdir -p "$tmp_dir/etc"
   cat << 'EOF' > "$tmp_dir/etc/asound.conf"
@@ -58,7 +49,7 @@ ctl.!default {
 }
 EOF
 
-  # 5. CONFIGURAR CLIENT.CONF DE PULSEAUDIO
+  # 4. CONFIGURAR CLIENT.CONF DE PULSEAUDIO GLOBAL
   echo "  -> Configurando directivas del cliente de audio para PA 17.0..."
   mkdir -p "$tmp_dir/etc/pulse"
   cat << 'EOF' > "$tmp_dir/etc/pulse/client.conf"
@@ -66,7 +57,7 @@ default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-  # 6. PARCHE DE REGISTRO DIRECTO PARA ENTORNO WINE (user.reg)
+  # 5. PARCHE DE REGISTRO DIRECTO PARA ENTORNO WINE (user.reg)
   if [ -f "$tmp_dir/user.reg" ]; then
     echo "  -> Forzando la inyección de llaves de sonido en el registro..."
     cat << 'EOF' >> "$tmp_dir/user.reg"
@@ -81,18 +72,18 @@ EOF
     chmod 0644 "$tmp_dir/user.reg"
   fi
 
-  # 7. Volver a cerrar el asset PRESERVANDO ENLACES SIMBÓLICOS MAESTROS
-  echo "  -> Recomprimiendo $archivo_molde sin romper symlinks..."
+  # 6. Volver a cerrar el asset preservando la estructura física limpia
+  echo "  -> Recomprimiendo $archivo_molde sin alterar symlinks..."
   cd "$tmp_dir"
   find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
-  # Limpieza
+  # Limpieza de temporales del runner
   cd "$BASE_DIR"
   rm -rf "$tmp_dir"
 }
 
-# EJECUTAR EL PARCHEO EN LOS DOS MOLDES DE TUS CONTENEDORES
+# EJECUTAR PARCHEO EXCLUSIVO EN LOS DOS MOLDES DE CONTENEDORES
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-echo "=== ¡Infraestructura de Symlinks inyectada con éxito absoluto! ==="
+echo "=== ¡Moldes purgados de forma absoluta y listos para PulseAudio 17.0! ==="
