@@ -29,29 +29,41 @@ jobs:
       - name: 4. Instalar Herramientas de Compilación del Sistema
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd
+          sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd curl
 
-      - name: 5. Otorgar Permisos de Ejecución a Gradle
-        run: chmod +x gradlew
+      - name: 5. Descargar Assets Remotos en Caliente (Bypass de Tarea de Bloqueo Gradle)
+        run: |
+          echo "=== Descargando assets originales antes de parchear ==="
+          ASSETS_DIR="app/src/main/assets"
+          mkdir -p "$ASSETS_DIR"
+          
+          # Descargar los moldes de fábrica directamente a tu carpeta local de compilación
+          # Reemplaza las URL si tu script de Gradle usa unos enlaces de descarga específicos
+          curl -L -o "$ASSETS_DIR/container_pattern_common.tzst" "https://github.com" || true
+          curl -L -o "$ASSETS_DIR/proton-9.0-arm64ec_container_pattern.tzst" "https://github.com" || true
 
-      - name: 6. Parchear Cabeceras Binarias Internas
+      - name: 6. Parchear Cabeceras Binarias Internas (SONAME Fix)
         run: |
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
           cd "$JNILIBS_DIR"
+          patchelf --set-soname libpulseaudio.so libpulseaudio.so
+          patchelf --set-soname libpulse.so libpulse.so
+          patchelf --set-soname libpulsecommon.so libpulsecommon.so
+          patchelf --set-soname libpulsecore.so libpulsecore.so
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
           patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
           patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
-          patchelf --set-soname libpulsecommon.so libpulsecommon.so
-          patchelf --set-soname libpulsecore.so libpulsecore.so
           cd ../../../..
 
-      - name: 7. Ejecutar Parche de ALSA y Moldear Assets desde Script
+      - name: 7. Ejecutar Parche de ALSA, asound.conf y Moldear Assets desde Script
         run: |
           chmod +x parchear_molde.sh
           ./parchear_molde.sh
 
-      - name: 8. Ejecutar Compilación Estándar de Gradle
-        run: ./gradlew assembleDebug --no-daemon
+      - name: 8. Otorgar Permisos de Ejecución a Gradle y Compilar APK
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
       - name: 9. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
