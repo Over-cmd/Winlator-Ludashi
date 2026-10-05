@@ -34,52 +34,7 @@ jobs:
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Reparar Pila de ALSA, asound.conf y Parchear Molde (Fix de Driver: None)
-        run: |
-          echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio en el molde ==="
-          BASE_DIR="$PWD"
-          ASSETS_DIR="$BASE_DIR/app/src/main/assets"
-          JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
-          TMP_DIR="$BASE_DIR/tmp_pattern"
-
-          # 1. Crear directorio temporal y desempaquetar el molde de tus assets
-          mkdir -p "$TMP_DIR"
-          tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
-
-          # 2. Purgar físicamente las librerías obsoletas de la versión 13.0
-          echo "-> Eliminando residuos obsoletos del molde..."
-          rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
-          rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
-          rm -f "$TMP_DIR/home/xuser/libpulse"* || true
-
-          # 3. Inyectar las 3 librerías compartidas en la carpeta de sistema global del molde
-          echo "-> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
-          mkdir -p "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
-          cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
-
-          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Estructura corregida en bloque de texto)
-          echo "-> Creating asound.conf configuration file..."
-          mkdir -p "$TMP_DIR/etc"
-          printf "pcm.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\nctl.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\n" > "$TMP_DIR/etc/asound.conf"
-
-          # 5. CONFIGURAR CLIENT.CONF GLOBAL
-          echo "-> Configurando directivas del cliente de audio para PA 17.0..."
-          mkdir -p "$TMP_DIR/etc/pulse"
-          printf "default-server = unix:/tmp/pulse-socket\nenable-shm = no\n" > "$TMP_DIR/etc/pulse/client.conf"
-
-          # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
-          echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
-          cd "$TMP_DIR"
-          tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
-
-          # 7. Limpieza de residuos en el runner
-          cd "$BASE_DIR"
-          rm -rf "$TMP_DIR"
-          echo "=== ¡Pila de ALSA y asound.conf restaurados con éxito en el molde! ==="
-
-      - name: 6.5. Parchear Cabeceras Binarias Internas (Alineación con Nombres Limpios del Repositorio)
+      - name: 6. Parchear Cabeceras Binarias Internas (Alineación con Nombres Limpios del Repositorio)
         run: |
           echo "=== Iniciando el remapeo de dependencias de bytes internos ==="
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
@@ -97,10 +52,55 @@ jobs:
           echo "=== ¡Cabeceras binarias internas actualizadas con éxito! ==="
           cd ../../../..
 
-      - name: 7. Ejecutar Compilación Estándar de Gradle
+      - name: 7. Reparar Pila de ALSA, asound.conf y Parchear Molde (Fix de Driver: None)
+        run: |
+          echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio en el molde ==="
+          BASE_DIR="$PWD"
+          ASSETS_DIR="$BASE_DIR/app/src/main/assets"
+          JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
+          TMP_DIR="$BASE_DIR/tmp_pattern"
+
+          # 1. Crear directorio temporal y desempaquetar el molde de tus assets
+          mkdir -p "$TMP_DIR"
+          tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
+
+          # 2. Purgar físicamente las librerías obsoletas de la versión 13.0
+          echo "-> Eliminando residuos obsoletos del molde..."
+          rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
+          rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
+          rm -f "$TMP_DIR/home/xuser/libpulse"* || true
+
+          # 3. Inyectar las 3 librerías compartidas (Ya perfectamente parcheadas por patchelf)
+          echo "-> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
+          mkdir -p "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
+          cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
+
+          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
+          echo "-> Creating asound.conf configuration file..."
+          mkdir -p "$TMP_DIR/etc"
+          printf "pcm.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\nctl.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\n" > "$TMP_DIR/etc/asound.conf"
+
+          # 5. CONFIGURAR CLIENT.CONF GLOBAL
+          echo "-> Configurando directivas del cliente de audio para PA 17.0..."
+          mkdir -p "$TMP_DIR/etc/pulse"
+          printf "default-server = unix:/tmp/pulse-socket\nenable-shm = no\n" > "$TMP_DIR/etc/pulse/client.conf"
+
+          # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
+          echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
+          cd "$TMP_DIR"
+          tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
+
+          # 7. Limpieza de residuos en el runner
+          cd "$BASE_DIR"
+          rm -rf "$TMP_DIR"
+          echo "=== ¡Pila de ALSA, asound.conf y librerías parcheadas listas en el molde! ==="
+
+      - name: 8. Ejecutar Compilación Estándar de Gradle
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: 8. Subir APK Compilado como Artefacto
+      - name: 9. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-3.1-PulseAudio17-APK
