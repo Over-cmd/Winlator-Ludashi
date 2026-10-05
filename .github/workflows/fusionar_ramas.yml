@@ -31,19 +31,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd curl
 
-      - name: 5. Descargar Assets Remotos en Caliente (Bypass de Tarea de Bloqueo Gradle)
-        run: |
-          echo "=== Descargando assets originales antes de parchear ==="
-          ASSETS_DIR="app/src/main/assets"
-          mkdir -p "$ASSETS_DIR"
-          
-          # Descargar los moldes de fábrica directamente a tu carpeta local de compilación
-          # Reemplaza las URL si tu script de Gradle usa unos enlaces de descarga específicos
-          curl -L -o "$ASSETS_DIR/container_pattern_common.tzst" "https://github.com" || true
-          curl -L -o "$ASSETS_DIR/proton-9.0-arm64ec_container_pattern.tzst" "https://github.com" || true
+      - name: 5. Otorgar Permisos de Ejecución a Gradle
+        run: chmod +x gradlew
 
-      - name: 6. Parchear Cabeceras Binarias Internas (SONAME Fix)
+      - name: 6. Forzar a Gradle a descargar los Assets Originales de Fábrica
         run: |
+          echo "=== Ejecutando tareas de descarga oficiales de Gradle ==."
+          ./gradlew downloadImageFS --no-daemon || true
+          ./gradlew downloadProton --no-daemon || true
+
+      - name: 7. Parchear Cabeceras Binarias Internas (SONAME Fix)
+        run: |
+          echo "=== Ajustando identidades binarias nativas ==="
           JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
           cd "$JNILIBS_DIR"
           patchelf --set-soname libpulseaudio.so libpulseaudio.so
@@ -55,17 +54,16 @@ jobs:
           patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
           cd ../../../..
 
-      - name: 7. Ejecutar Parche de ALSA, asound.conf y Moldear Assets desde Script
+      - name: 8. Ejecutar Parche de ALSA, asound.conf y Moldear Assets desde Script
         run: |
+          echo "=== Modificando los assets legítimos descargados por Gradle ==="
           chmod +x parchear_molde.sh
           ./parchear_molde.sh
 
-      - name: 8. Otorgar Permisos de Ejecución a Gradle y Compilar APK
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+      - name: 9. Compilar el APK Definitivo con los Assets Parcheados
+        run: ./gradlew assembleDebug --no-daemon
 
-      - name: 9. Subir APK Compilado como Artefacto
+      - name: 10. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-3.1-PulseAudio17-APK
