@@ -14,10 +14,9 @@ parchear_un_asset() {
   fi
 
   echo "=== DETECTADO ASSET CRÍTICO: $archivo ==="
-  echo "  -> Desempaquetando en caliente para inspección profunda..."
   mkdir -p "$tmp_dir"
   
-  # Detectar el algoritmo de compresión real del asset para abrirlo sin corrupciones
+  # Desempaquetar preservando enlaces simbólicos y permisos nativos de Linux
   if [[ "$archivo" == *.tzst || "$archivo" == *.zst ]]; then
     tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
   elif [[ "$archivo" == *.tar.xz || "$archivo" == *.txz ]]; then
@@ -29,35 +28,38 @@ parchear_un_asset() {
     return 0
   fi
 
-  # ============================================================================
-  # 1. PURGA ABSOLUTA RADICAL (El fin de la versión 13.0)
-  # Busca y destruye de forma física cualquier binario viejo en todas las subcarpetas
-  # ============================================================================
-  echo "  -> Ejecutando purga destructiva de PulseAudio 13.0..."
+  # 1. PURGA ABSOLUTA DE RESIDUOS DE LA VERSIÓN 13.0
   find "$tmp_dir" -name "*13.0.so" -delete || true
-  rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
-  rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
-  rm -f "$tmp_dir/usr/lib/aarch64-linux-gnu/libpulsecommon-13.0.so" || true
-  rm -f "$tmp_dir/usr/lib/aarch64-linux-gnu/libpulsecore-13.0.so" || true
-  rm -f "$tmp_dir/libpulsecommon-13.0.so" || true
-  rm -f "$tmp_dir/libpulsecore-13.0.so" || true
+  rm -rf "$tmp_dir/usr/local/lib/pulse-13.0" || true
+  rm -rf "$tmp_dir/usr/lib/pulse-13.0" || true
 
   # ============================================================================
-  # 2. INYECTAR TU VERSIÓN ELÁSTICA MODERNA DE PULSEAUDIO 17.0
-  # Si el asset tiene carpetas de sistema operativo (usr/lib), inyecta tus parches reales
+  # 2. INYECTAR LIBRERÍAS Y MÓDULOS DE LA VERSIÓN 17.0
   # ============================================================================
   if [ -d "$tmp_dir/usr/lib" ] || [ "$archivo" == "pulseaudio.tzst" ]; then
-    echo "  -> Inyectando tus componentes de PulseAudio 17.0 del repositorio..."
-    local ruta_destino="$tmp_dir/usr/lib"
-    [ "$archivo" == "pulseaudio.tzst" ] && ruta_destino="$tmp_dir"
+    echo "  -> Inyectando componentes cliente de PulseAudio 17.0..."
+    local ruta_lib="$tmp_dir/usr/lib"
+    [ "$archivo" == "pulseaudio.tzst" ] && ruta_lib="$tmp_dir"
     
-    mkdir -p "$ruta_destino"
-    cp -a "$JNILIBS_DIR"/libpulsecommon.so "$ruta_destino/"
-    cp -a "$JNILIBS_DIR"/libpulsecore.so "$ruta_destino/"
-    cp -a "$JNILIBS_DIR"/libpulse.so "$ruta_destino/"
+    mkdir -p "$ruta_lib"
+    cp -a "$JNILIBS_DIR"/libpulsecommon.so "$ruta_lib/"
+    cp -a "$JNILIBS_DIR"/libpulsecore.so "$ruta_lib/"
+    cp -a "$JNILIBS_DIR"/libpulse.so "$ruta_lib/"
+
+    # CORRECCIÓN DE MÓDULOS: Creamos las dos rutas del sistema donde Wine y el demonio
+    # buscarán de forma nativa los 53 módulos elásticos compilados de la versión 17.0
+    echo "  -> Estructurando carpetas e inyectando los módulos elásticos modernos..."
+    mkdir -p "$tmp_dir/usr/local/lib/pulseaudio/modules"
+    mkdir -p "$tmp_dir/usr/lib/pulseaudio/modules"
     
-    # 3. RECONSTRUIR EL CABLE MAESTRO DE REDIRECCIÓN DE ALSA
-    echo "  -> Configurando archivo maestro maestro de sistema /etc/asound.conf..."
+    # Si tienes los módulos .so de la versión 17 compilados en alguna carpeta de origen,
+    # el comando cp se encargará de rellenar los directorios automáticamente:
+    if [ -d "audio_plugin/modules" ]; then
+      cp -a audio_plugin/modules/*.so "$tmp_dir/usr/local/lib/pulseaudio/modules/" 2>/dev/null || true
+      cp -a audio_plugin/modules/*.so "$tmp_dir/usr/lib/pulseaudio/modules/" 2>/dev/null || true
+    fi
+    
+    # 3. RECONSTRUIR EL CABLE DE REDIRECCIÓN DE ALSA (Para forzar Driver: alsa)
     mkdir -p "$tmp_dir/etc"
     cat << 'EOF' > "$tmp_dir/etc/asound.conf"
 pcm.!default {
@@ -70,7 +72,6 @@ ctl.!default {
 }
 EOF
 
-    echo "  -> Configurando directivas del cliente de audio para PA 17.0..."
     mkdir -p "$tmp_dir/etc/pulse"
     cat << 'EOF' > "$tmp_dir/etc/pulse/client.conf"
 default-server = unix:/tmp/pulse-socket
@@ -78,11 +79,9 @@ enable-shm = no
 EOF
   fi
 
-  # ============================================================================
   # 4. PARCHE DE REGISTRO DIRECTO PARA ENTORNO WINE
-  # ============================================================================
   if [ -f "$tmp_dir/user.reg" ]; then
-    echo "  -> Forzando la inyección de llaves de sonido en el registro local..."
+    echo "  -> Inyectando llaves de sonido nativas en user.reg..."
     cat << 'EOF' >> "$tmp_dir/user.reg"
 
 [Software\\Wine\\Drivers]
@@ -95,9 +94,7 @@ EOF
     chmod 0644 "$tmp_dir/user.reg"
   fi
 
-  # ============================================================================
-  # 5. VOLVER A SELLAR EL ASSET PRESERVANDO PERMISOS Y ENLACES SIMBÓLICOS NATIVOS
-  # ============================================================================
+  # 5. VOLVER A SELLAR EL ASSET PRESERVANDO LOS PERMISOS NATIVOS
   echo "  -> Volviendo a empaquetar $archivo de forma limpia..."
   cd "$tmp_dir"
   if [[ "$archivo" == *.tzst || "$archivo" == *.zst ]]; then
@@ -110,15 +107,12 @@ EOF
 
   cd "$BASE_DIR"
   rm -rf "$tmp_dir"
-  echo "=== ¡Asset $archivo purgado y actualizado con éxito! ==="
 }
 
-# ESCANEO COMPLETO MASIVO DE LA CARPETA DE ASSETS
 echo "=== INICIANDO BARRIDO GLOBAL MULTI-FORMATO EN ASSETS ==="
 for f in "$ASSETS_DIR"/*; do
   if [ -f "$f" ]; then
     parchear_un_asset "$(basename "$f")"
   fi
 done
-
-echo "=== ¡Fase DevOps completada al 100%! Todo rastro de la versión 13.0 ha sido eliminado ==="
+echo "=== ¡Fase DevOps completada al 100%! ==="
