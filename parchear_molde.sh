@@ -1,33 +1,40 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio en el molde ==="
 BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
-TMP_DIR="$BASE_DIR/tmp_pattern"
 
-# 1. Crear directorio temporal y desempaquetar el molde de tus assets
-mkdir -p "$TMP_DIR"
-tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
+parchear_un_molde() {
+  local archivo_molde="$1"
+  local tmp_dir="$BASE_DIR/tmp_${archivo_molde%.*}"
+  
+  if [ ! -f "$ASSETS_DIR/$archivo_molde" ]; then
+    echo "Aviso: El archivo $archivo_molde no existe en assets, saltando..."
+    return 0
+  fi
 
-# 2. Purgar físicamente las librerías obsoletas de la versión 13.0
-echo "-> Eliminando residuos obsoletos del molde..."
-rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
-rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
-rm -f "$TMP_DIR/home/xuser/libpulse"* || true
+  echo "=== Parcheando el molde: $archivo_molde ==="
+  mkdir -p "$tmp_dir"
+  tar -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-# 3. Inyectar las 3 librerías compartidas (Ya perfectamente parcheadas por patchelf)
-echo "-> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
-mkdir -p "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
+  # 1. Purgar físicamente las librerías muertas de la versión 13.0
+  echo "  -> Eliminando residuos antiguos 13.0..."
+  rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so"
+  rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so"
+  rm -f "$tmp_dir/home/xuser/libpulse"* || true
 
-# 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
-echo "-> Creando archivo de configuración maestro asound.conf..."
-mkdir -p "$TMP_DIR/etc"
-cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
+  # 2. Inyectar las 3 librerías compartidas de PulseAudio 17.0 (Limpias de patchelf)
+  echo "  -> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
+  mkdir -p "$tmp_dir/usr/lib/"
+  cp -a "$JNILIBS_DIR"/libpulsecommon.so "$tmp_dir/usr/lib/"
+  cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
+  cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
+
+  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Para forzar Driver: alsa)
+  echo "  -> Creando archivo maestro /etc/asound.conf..."
+  mkdir -p "$tmp_dir/etc"
+  cat << 'EOF' > "$tmp_dir/etc/asound.conf"
 pcm.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
@@ -38,20 +45,26 @@ ctl.!default {
 }
 EOF
 
-# 5. CONFIGURAR CLIENT.CONF GLOBAL
-echo "-> Configurando directivas del cliente de audio para PA 17.0..."
-mkdir -p "$TMP_DIR/etc/pulse"
-cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
+# 4. CONFIGURAR CLIENT.CONF DE PULSEAUDIO
+  echo "  -> Configurando directivas en /etc/pulse/client.conf..."
+  mkdir -p "$tmp_dir/etc/pulse"
+  cat << 'EOF' > "$tmp_dir/etc/pulse/client.conf"
 default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-# 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
-echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
-cd "$TMP_DIR"
-tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
+  # 5. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
+  echo "  -> Recomprimiendo $archivo_molde..."
+  cd "$tmp_dir"
+  tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
-# 7. Limpieza de residuos
-cd "$BASE_DIR"
-rm -rf "$TMP_DIR"
-echo "=== ¡Pila de ALSA, asound.conf y librerías parcheadas listas en el molde! ==="
+  # Limpieza
+  cd "$BASE_DIR"
+  rm -rf "$tmp_dir"
+}
+
+# EJECUTAR PARCHEO MASIVO EN AMBOS MOLDES (x86_64 y ARM64EC)
+parchear_un_molde "container_pattern_common.tzst"
+parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
+
+echo "=== ¡Todos los moldes de assets actualizados con éxito con PulseAudio 17.0! ==="
