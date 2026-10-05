@@ -59,27 +59,15 @@ jobs:
           cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
-          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Crucial para quitar el Driver: None)
-          echo "-> Creando archivo de configuración maestro asound.conf..."
+          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Estructura corregida en bloque de texto)
+          echo "-> Creating asound.conf configuration file..."
           mkdir -p "$TMP_DIR/etc"
-          cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
-          pcm.!default {
-              type android_aserver
-              socket "/tmp/pulse-socket"
-          }
-          ctl.!default {
-              type android_aserver
-              socket "/tmp/pulse-socket"
-          }
-          EOF
+          printf "pcm.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\nctl.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\n" > "$TMP_DIR/etc/asound.conf"
 
           # 5. CONFIGURAR CLIENT.CONF GLOBAL
           echo "-> Configurando directivas del cliente de audio para PA 17.0..."
           mkdir -p "$TMP_DIR/etc/pulse"
-          cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
-          default-server = unix:/tmp/pulse-socket
-          enable-shm = no
-          EOF
+          printf "default-server = unix:/tmp/pulse-socket\nenable-shm = no\n" > "$TMP_DIR/etc/pulse/client.conf"
 
           # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
           echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
