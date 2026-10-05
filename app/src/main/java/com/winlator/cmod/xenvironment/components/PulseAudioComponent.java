@@ -47,9 +47,9 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
-        // CORREGIDO: Nombres limpios sin números de versión intermedios para sincronizar con tu repositorio
+        // FULMINAR PA 13: Se listan tus librerías legítimas de la versión 17.0 con su nomenclatura real
         String[] libs = new String[] {
-            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon.so", "libpulsecore.so", "libsndfile.so"
+            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
         };
         for (int i = 0; i < libs.length; i++) {
             String path = "lib/" + "arm64-v8a" + "/" + libs[i];
@@ -77,10 +77,10 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // CORREGIDO: Se habilita el protocolo TCP local nativo en el puerto estándar 4713
+        // CORREGIDO PARA PA 17: Se remueve auth-cookie-enabled=0 para evitar abortos de red
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
-            "load-module module-native-protocol-tcp auth-anonymous=1 listen=127.0.0.1 port=4713",
+            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
             "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
@@ -89,7 +89,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
         File modulesDir = new File(workingDir, "pulseaudio/modules");
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
-        // Mantenemos las variables de entorno tradicionales
         ArrayList<String> envVars = new ArrayList<>();
         envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
         envVars.add("HOME="+workingDir.getAbsolutePath());
@@ -97,8 +96,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
-        // 2. CORRECCIÓN DEFINITIVA DE AUDIO: Generamos un script de lanzamiento temporal
-        // para esquivar los problemas de escape de comillas y el bloqueo de Android Bionic
+        // Script puente temporal ultra-limpio para evitar bloqueos del Linker en Android
         File launchScript = new File(workingDir, "launch.sh");
         FileUtils.writeString(launchScript, String.join("\n",
             "#!/system/bin/sh",
@@ -116,7 +114,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
         ));
         FileUtils.chmod(launchScript, 0771);
 
-        // 3. Invocamos directamente el script temporal pasando la firma String compatible con el compilador
         String finalCommand = launchScript.getAbsolutePath();
         return ProcessHelper.exec(finalCommand, envVars.toArray(new String[0]), workingDir);
     }
