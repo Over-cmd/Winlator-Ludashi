@@ -3,6 +3,12 @@ set -euo pipefail
 
 BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
+JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
+
+# Forzar la eliminación física en caliente en la carpeta de compilación nativa por si Gradle los retiene
+echo "-> Purgando residuos históricos de la carpeta jniLibs antes de empaquetar..."
+rm -f "$JNILIBS_DIR"/libpulsecommon-13.0.so || true
+rm -f "$JNILIBS_DIR"/libpulsecore-13.0.so || true
 
 parchear_un_molde() {
   local archivo_molde="$1"
@@ -19,23 +25,24 @@ parchear_un_molde() {
   # Desempaquetar preservando enlaces simbólicos nativos intactos
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-  # 1. PURGA ABSOLUTA DE LA VERSIÓN 13: Borra los archivos viejos que salían en tu foto
+  # 1. PURGA RECURSIVA: Forzar el borrado de cualquier rastro en las subcarpetas del molde
   echo "  -> Purgando residuos antiguos 13.0 de la RootFS del molde..."
+  find "$tmp_dir" -name "*13.0.so" -delete || true
   rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
 
-  # 2. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (El cable maestro para quitar el Driver: None)
+  # 2. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (El cable maestro para conectar con Wine)
   echo "  -> Creando archivo maestro de sistema /etc/asound.conf..."
   mkdir -p "$tmp_dir/etc"
   cat << 'EOF' > "$tmp_dir/etc/asound.conf"
 pcm.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
-  }
+}
 ctl.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
-  }
+}
 EOF
 
   # 3. CONFIGURAR CLIENT.CONF DE PULSEAUDIO GLOBAL
@@ -75,4 +82,4 @@ EOF
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-echo "=== ¡Moldes de contenedores purgados y sincronizados con tu parche de la versión 17.0 con éxito! ==="
+echo "=== ¡Moldes purgados y sincronizados con éxito! ==="
