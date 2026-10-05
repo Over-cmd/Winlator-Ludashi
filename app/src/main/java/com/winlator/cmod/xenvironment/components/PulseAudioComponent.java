@@ -77,7 +77,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // Archivo default.pa limpio y compatible sin parámetros que crasheen
+        // 1. Archivo default.pa limpio y compatible sin parámetros que crasheen
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
@@ -92,25 +92,32 @@ public class PulseAudioComponent extends EnvironmentComponent {
         // Mantenemos las variables de entorno tradicionales
         ArrayList<String> envVars = new ArrayList<>();
         envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
-        envVars.add("HOME="+workingDir);
+        envVars.add("HOME="+workingDir.getAbsolutePath());
         envVars.add("TMPDIR="+environment.getTmpDir());
         
         copyFromLibraryDir(workingDir);
 
-        // CORRECCIÓN ABSOLUTA: Inyectamos el LD_LIBRARY_PATH pegado al inicio del comando como texto plano.
-        // Esto permite invocar el subproceso sh de forma compatible con la firma String de ProcessHelper.exec
-        String command = "env LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath +
-                         " " + workingDir.getAbsolutePath() + "/libpulseaudio.so" +
-                         " --system=false" +
-                         " --disable-shm=true" +
-                         " --fail=false" +
-                         " -n --file=" + workingDir.getAbsolutePath() + "/default.pa" +
-                         " --daemonize=false" +
-                         " --use-pid-file=false" +
-                         " --exit-idle-time=-1";
+        // 2. CORRECCIÓN DEFINITIVA DE AUDIO: Generamos un script de lanzamiento temporal
+        // para esquivar los problemas de escape de comillas y el bloqueo de Android Bionic
+        File launchScript = new File(workingDir, "launch.sh");
+        FileUtils.writeString(launchScript, String.join("\n",
+            "#!/system/bin/sh",
+            "export LD_LIBRARY_PATH=\"" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath + "\"",
+            "export HOME=\"" + workingDir.getAbsolutePath() + "\"",
+            "export TMPDIR=\"" + environment.getTmpDir() + "\"",
+            "exec " + workingDir.getAbsolutePath() + "/libpulseaudio.so \\",
+            "  --system=false \\",
+            "  --disable-shm=true \\",
+            "  --fail=false \\",
+            "  -n --file=" + workingDir.getAbsolutePath() + "/default.pa \\",
+            "  --daemonize=false \\",
+            "  --use-pid-file=false \\",
+            "  --exit-idle-time=-1"
+        ));
+        FileUtils.chmod(launchScript, 0771);
 
-        // CORREGIDO: Se pasa el comando final como un String puro usando /system/bin/sh -c
-        String finalCommand = "/system/bin/sh -c \"" + command + "\"";
+        // 3. Invocamos directamente el script temporal pasando la firma String compatible con Gradle
+        String finalCommand = launchScript.getAbsolutePath();
         return ProcessHelper.exec(finalCommand, envVars.toArray(new String[0]), workingDir);
     }
 }
