@@ -77,15 +77,15 @@ jobs:
           cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
-          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
-          echo "-> Creating asound.conf configuration file..."
+          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Fix sintáctico con comillas simples externas de protección)
+          echo "-> Creando archivo de configuración maestro asound.conf..."
           mkdir -p "$TMP_DIR/etc"
-          printf "pcm.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\nctl.!default {\n    type android_aserver\n    socket \"/tmp/pulse-socket\"\n}\n" > "$TMP_DIR/etc/asound.conf"
+          printf 'pcm.!default {\n    type android_aserver\n    socket "/tmp/pulse-socket"\n}\nctl.!default {\n    type android_aserver\n    socket "/tmp/pulse-socket"\n}\n' > "$TMP_DIR/etc/asound.conf"
 
           # 5. CONFIGURAR CLIENT.CONF GLOBAL
           echo "-> Configurando directivas del cliente de audio para PA 17.0..."
           mkdir -p "$TMP_DIR/etc/pulse"
-          printf "default-server = unix:/tmp/pulse-socket\nenable-shm = no\n" > "$TMP_DIR/etc/pulse/client.conf"
+          printf 'default-server = unix:/tmp/pulse-socket\nenable-shm = no\n' > "$TMP_DIR/etc/pulse/client.conf"
 
           # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
           echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
