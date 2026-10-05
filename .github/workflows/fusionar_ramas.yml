@@ -34,49 +34,33 @@ jobs:
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Forzar a Gradle a descargar los Assets Originales de Fábrica
+      - name: 6. Descargar RootFS Base Original (imagefs.tzst) desde Gradle
         run: |
-          echo "=== Ejecutando tareas de descarga oficiales de Gradle ==="
-          ./gradlew downloadImageFS --no-daemon || true
-          ./gradlew downloadProton --no-daemon || true
+          echo "=== Descargando la RootFS original de fábrica desde los servidores ==="
+          ./gradlew downloadImageFS --no-daemon
 
-      - name: 6.5. Hackear CMakeLists.txt (Bloquear descarga e inyección de PulseAudio 13)
+      - name: 6.5. Hackear CMakeLists.txt (Bloquear inyecciones de PulseAudio 13 residuales)
         run: |
           echo "=== Interceptando configuraciones rígidas de CMake ==="
-          # Busca de forma masiva cualquier archivo CMakeLists.txt en el repositorio
           find . -name "CMakeLists.txt" | while read -r cmake_file; do
             echo "  -> Revisando y parchando: $cmake_file"
-            # 1. Bloquea descargas remotas de la versión 13.0 reemplazándolas por texto muerto o saltos
             sed -i 's/13.0/17.0/g' "$cmake_file"
             sed -i 's/pulse-13.0/pulseaudio/g' "$cmake_file"
-            # 2. Si CMake intenta descargar repositorios externos con URL muertas de la versión 13, las desvía
             sed -i 's|pulseaudio-13.0|pulseaudio-17.0|g' "$cmake_file"
           done
 
-      - name: 7. Parchear Cabeceras Binarias Internas (SONAME Fix)
+      - name: 7. Ejecutar Purgador Maestro y Reparar RootFS (imagefs.tzst) desde Script
         run: |
-          echo "=== Ajustando identidades binarias nativas ==="
-          JNILIBS_DIR="app/src/main/jniLibs/arm64-v8a"
-          cd "$JNILIBS_DIR"
-          patchelf --set-soname libpulseaudio.so libpulseaudio.so
-          patchelf --set-soname libpulse.so libpulse.so
-          patchelf --set-soname libpulsecommon.so libpulsecommon.so
-          patchelf --set-soname libpulsecore.so libpulsecore.so
-          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulse.so
-          patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so libpulseaudio.so
-          patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so libpulseaudio.so
-          cd ../../../..
-
-      - name: 8. Ejecutar Parche de ALSA, asound.conf y Moldear Assets desde Script
-        run: |
-          echo "=== Modificando los assets legítimos descargados por Gradle ==="
+          echo "=== Abriendo imagefs.tzst, fulminando PA 13 e inyectando tu versión 17.0 ==="
           chmod +x parchear_molde.sh
           ./parchear_molde.sh
 
-      - name: 9. Compilar el APK Definitivo con los Assets Parcheados
-        run: ./gradlew assembleDebug --no-daemon
+      - name: 8. Compilar el APK Definitivo con los Assets Parcheados
+        run: |
+          echo "=== Ensamblando paquete APK final limpio ==="
+          ./gradlew assembleDebug --no-daemon
 
-      - name: 10. Subir APK Compilado como Artefacto
+      - name: 9. Subir APK Compilado como Artefacto
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-3.1-PulseAudio17-APK
