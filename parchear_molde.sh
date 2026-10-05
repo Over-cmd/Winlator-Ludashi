@@ -20,22 +20,20 @@ parchear_un_molde() {
   # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-  # 1. PURGA ABSOLUTA: Forzamos la eliminación total de cualquier rastro o enlace con guion
-  echo "  -> Purgando residuos antiguos y enlaces con números de versión..."
+  # 1. PURGA ABSOLUTA: Forzamos la eliminación de cualquier archivo con la nomenclatura vieja 13.0
+  echo "  -> Purgando residuos antiguos de la RootFS del molde..."
+  find "$tmp_dir" -name "*13.0.so" -delete || true
   rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
-  rm -f "$tmp_dir/usr/lib/libpulsecommon-17.0.so" || true
-  rm -f "$tmp_dir/usr/lib/libpulsecore-17.0.so" || true
-  rm -f "$tmp_dir/home/xuser/libpulse"* || true
 
   # 2. INYECTAR TUS LIBRERÍAS MAESTRAS DE LA VERSIÓN 17.0 CON NOMBRE LIMPIO
-  echo "  -> Inyectando tus componentes reales a /usr/lib/ ..."
+  echo "  -> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
   mkdir -p "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecommon.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
 
-  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (El cable maestro para conectar con Wine)
+  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
   echo "  -> Creando archivo maestro de sistema /etc/asound.conf..."
   mkdir -p "$tmp_dir/etc"
   cat << 'EOF' > "$tmp_dir/etc/asound.conf"
@@ -73,7 +71,7 @@ EOF
   fi
 
   # 6. Volver a cerrar el asset preservando la estructura física limpia
-  echo "  -> Recomprimiendo $archivo_molde sin alterar symlinks..."
+  echo "  -> Recomprimiendo $archivo_molde sin romper enlaces simbólicos..."
   cd "$tmp_dir"
   find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
@@ -86,4 +84,11 @@ EOF
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-echo "=== ¡Moldes purgados de forma absoluta y listos para PulseAudio 17.0! ==="
+# 7. PURGA RADICAL DE LA CACHÉ OCULTA DE GRADLE (Evita que vuelva a inyectar la 13.0 al compilar)
+echo "=== Purgando duplicados históricos en la carpeta intermedia de compilación ==="
+BUILD_INTERMEDIATES="$BASE_DIR/app/build/intermediates"
+if [ -d "$BUILD_INTERMEDIATES" ]; then
+  find "$BUILD_INTERMEDIATES" -name "*13.0.so" -delete || true
+fi
+
+echo "=== ¡Moldes y carpetas intermedias purgados al 100% con éxito! ==="
