@@ -34,9 +34,9 @@ jobs:
       - name: 5. Otorgar Permisos de Ejecución a Gradle
         run: chmod +x gradlew
 
-      - name: 6. Parchear y Limpiar el Molde del Contenedor (container_pattern_common.tzst)
+      - name: 6. Parchear Molde del Contenedor y Forzar Configuración del Cliente de Audio
         run: |
-          echo "=== Iniciando el parcheo del molde de la RootFS ==="
+          echo "=== Iniciando el parcheo y limpieza profunda del molde de la RootFS ==="
           BASE_DIR="$PWD"
           ASSETS_DIR="$BASE_DIR/app/src/main/assets"
           JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
@@ -46,27 +46,35 @@ jobs:
           mkdir -p "$TMP_DIR"
           tar -I 'zstd -d' -xf "$ASSETS_DIR/container_pattern_common.tzst" -C "$TMP_DIR"
 
-          # 2. Purgar físicamente las librerías muertas de la versión 13.0
+          # 2. Purgar físicamente las librerías obsoletas de la versión 13.0
           echo "-> Eliminando librerías antiguas 13.0 del molde..."
           rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so"
           rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so"
 
-          # 3. Inyectar las nuevas librerías 17.0 (Tomadas con sus nombres limpios del repositorio)
-          echo "-> Inyectando nuevas librerías al molde..."
+          # 3. Inyectar las nuevas librerías 17.0 limpias de jniLibs directamente a la RootFS del molde
+          echo "-> Inyectando nuevas librerías compartidas de PulseAudio 17.0..."
           mkdir -p "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulsecommon.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
-          # 4. Volver a empaquetar el molde con máxima compresión ZSTD usando todos los hilos
+          # 4. FORZAR CLIENT.CONF COMPATIBLE: Elimina redirecciones rotas a submódulos 13.0
+          echo "-> Configurando directivas del cliente de audio para PA 17.0..."
+          mkdir -p "$TMP_DIR/etc/pulse"
+          cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
+          default-server = unix:/tmp/pulse-socket
+          enable-shm = no
+          EOF
+
+          # 5. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
           echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
           cd "$TMP_DIR"
           tar -cvf - * | zstd -19 -T0 > "$ASSETS_DIR/container_pattern_common.tzst"
 
-          # 5. Limpieza de residuos en el runner
+          # 6. Limpieza de residuos en el runner
           cd "$BASE_DIR"
           rm -rf "$TMP_DIR"
-          echo "=== ¡Molde actualizado con PulseAudio 17.0 con éxito! ==="
+          echo "=== ¡Molde y configuraciones de audio actualizados con éxito! ==="
 
       - name: 6.5. Parchear Cabeceras Binarias Internas (Alineación con Nombres Limpios del Repositorio)
         run: |
