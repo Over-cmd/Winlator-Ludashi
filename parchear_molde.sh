@@ -5,52 +5,41 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-parchear_un_asset() {
-  local archivo="$1"
-  local tmp_dir="$BASE_DIR/tmp_${archivo//./_}"
-  
-  if [ ! -f "$ASSETS_DIR/$archivo" ]; then
-    return 0
-  fi
+# Nombre del archivo maestro de la RootFS descargado por Gradle
+ARCHIVO_ROOTFS="imagefs.tzst"
+TMP_DIR="$BASE_DIR/tmp_rootfs"
 
-  echo "=== PROCESANDO ASSET DEFINITIVO: $archivo ==="
-  mkdir -p "$tmp_dir"
-  
-  # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
-  tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
+if [ ! -f "$ASSETS_DIR/$ARCHIVO_ROOTFS" ]; then
+  echo "Error Crítico: No se encontró el archivo $ARCHIVO_ROOTFS en assets. Abortando."
+  exit 1
+fi
 
-  # ============================================================================
-  # CASO EXCLUSIVO: TU ARCHIVO PULSEAUDIO.TZST PERSONALIZADO
-  # ============================================================================
-  if [ "$archivo" == "pulseaudio.tzst" ]; then
-    echo "  -> Manteniendo intactos tus 53 módulos de assets..."
-    echo "  -> Aplicando remapeo de bytes patchelf para corregir SONAMES en tu tablet..."
-    
-    # Rastrear de forma recursiva tus módulos reales e inyectar el fix de Android Bionic
-    find "$tmp_dir" -name "*.so" | while read -r mod_file; do
-      patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon.so "$mod_file" 2>/dev/null || true
-      patchelf --replace-needed libpulsecore-17.0.so libpulsecore.so "$mod_file" 2>/dev/null || true
-      patchelf --set-soname "$(basename "$mod_file")" "$mod_file" 2>/dev/null || true
-    done
+echo "=== INICIANDO PURGA MAESTRA EN LA ROOTFS: $ARCHIVO_ROOTFS ==="
+mkdir -p "$TMP_DIR"
 
-  # ============================================================================
-  # CASO EXCLUSIVO: LOS MOLDES DE LOS CONTENEDORES (WINE / PROTON ARM64EC)
-  # ============================================================================
-  else
-    if [ -d "$tmp_dir/usr/lib" ]; then
-      echo "  -> Purgando residuos antiguos 13.0 y sincronizando en los contenedores..."
-      find "$tmp_dir" -name "*13.0.so" -delete || true
-      rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
-      rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
-      
-      mkdir -p "$tmp_dir/usr/lib/"
-      cp -a "$JNILIBS_DIR"/libpulsecommon.so "$tmp_dir/usr/lib/"
-      cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
-      cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
+# 1. Desempaquetar la RootFS real preservando de forma estricta los enlaces simbólicos y permisos de Linux
+tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_ROOTFS" -C "$TMP_DIR"
 
-      # Inyectar el cable maestro de ALSA (asound.conf)
-      mkdir -p "$tmp_dir/etc"
-      cat << 'EOF' > "$tmp_dir/etc/asound.conf"
+# 2. FULMINAR PA 13: Eliminar de forma física y radical todas las librerías viejas de la RootFS
+echo "-> Eliminando físicamente los binarios obsoletos de la versión 13.0..."
+rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so" || true
+rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so" || true
+rm -f "$TMP_DIR/usr/lib/aarch64-linux-gnu/libpulsecommon-13.0.so" || true
+rm -f "$TMP_DIR/usr/lib/aarch64-linux-gnu/libpulsecore-13.0.so" || true
+rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
+rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
+
+# 3. INYECTAR TUS COMPONENTES REALES 17.0 CON SU NOMBRE NATIVO CORRECTO
+echo "-> Inyectando tus librerías de PulseAudio 17.0 renombradas a las carpetas globales..."
+mkdir -p "$TMP_DIR/usr/lib"
+cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
+
+# 4. RECONSTRUIR EL ARCHIVO MAESTRO DE REDIRECCIÓN DE ALSA (Para quitar Driver: None)
+echo "-> Creando archivo maestro /etc/asound.conf en el núcleo de Linux..."
+mkdir -p "$TMP_DIR/etc"
+cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
 pcm.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
@@ -61,18 +50,18 @@ ctl.!default {
 }
 EOF
 
-      mkdir -p "$tmp_dir/etc/pulse"
-      cat << 'EOF' > "$tmp_dir/etc/pulse/client.conf"
+# 5. CONFIGURAR CLIENT.CONF MAESTRO PARA LA VERSIÓN 17.0
+echo "-> Configurando directivas globales de red en /etc/pulse/client.conf..."
+mkdir -p "$TMP_DIR/etc/pulse"
+cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
 default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
-    fi
-  fi
 
-  # Parche del registro user.reg para forzar al mezclador de Windows
-  if [ -f "$tmp_dir/user.reg" ]; then
-    echo "  -> Inyectando llaves de sonido nativas en user.reg..."
-    cat << 'EOF' >> "$tmp_dir/user.reg"
+# 6. PARCHEAR EL REGISTRO MODO DE PROTECCIÓN SI WINE TIENE UN REGISTRO PRECOMPILADO
+if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
+  echo "-> Forzando la activación de los drivers en el registro integrado..."
+  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
 
 [Software\\Wine\\Drivers]
 "Audio"="alsa,pulse"
@@ -81,21 +70,14 @@ EOF
 "Server"="unix:/tmp/pulse-socket"
 "DisableSHM"="1"
 EOF
-    chmod 0644 "$tmp_dir/user.reg"
-  fi
+fi
 
-  # Volver a cerrar el asset preservando los enlaces simbólicos de Proton
-  echo "  -> Recomprimiendo $archivo de forma limpia..."
-  cd "$tmp_dir"
-  find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo"
+# 7. Volver a cerrar la RootFS base con máxima compresión ZSTD preservando enlaces simbólicos
+echo "-> Recomprimiendo imagefs.tzst sin alterar los symlinks nativos del sistema operativo..."
+cd "$TMP_DIR"
+find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$ARCHIVO_ROOTFS"
 
-  cd "$BASE_DIR"
-  rm -rf "$tmp_dir"
-}
-
-echo "=== INICIANDO BARRIDO GLOBAL MULTI-FORMATO EN ASSETS ==="
-parchear_un_asset "container_pattern_common.tzst"
-parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst" || parchear_un_asset "proton-9.0-arm64ec_container_pattern.tzst"
-parchear_un_asset "pulseaudio.tzst"
-
-echo "=== ¡Fase DevOps completada con tus módulos al 100%! ==="
+# Limpieza de residuos en el runner
+cd "$BASE_DIR"
+rm -rf "$TMP_DIR"
+echo "=== ¡RootFS imagefs.tzst purgada y reestructurada con PulseAudio 17.0 con éxito absoluto! ==="
