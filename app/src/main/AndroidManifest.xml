@@ -21,7 +21,9 @@
         android:required="false" />
 
     <!-- Permissions (unique, no duplicates) -->
-    <uses-permission android:name="android.permission.INTERNET" />
+        <uses-permission android:name="android.permission.INTERNET" />
+    <!-- PARCHE DE AUDIO: Desbloquea la API AAudio de captura nativa para evitar crash de PulseAudio 17 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.VIBRATE" />
@@ -154,5 +156,18 @@
         <meta-data
             android:name="android.allow_multiple_resumed_activities"
             android:value="true" />
+                <meta-data
+            android:name="com.samsung.android.multidisplay.keep_process_alive"
+            android:value="false"/>
+        <meta-data
+            android:name="android.allow_multiple_resumed_activities"
+            android:value="true" />
+
+        <!-- PARCHE DE AUDIO: Otorga prioridad de baja latencia multimedia al motor de PulseAudio moderno -->
+        <service
+            android:name="com.winlator.cmod.XServerService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+            
     </application>
 </manifest>
