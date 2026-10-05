@@ -20,11 +20,13 @@ parchear_un_molde() {
   # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo_molde" -C "$tmp_dir"
 
-  # 1. PURGA ABSOLUTA: Forzamos la eliminación de cualquier archivo con la nomenclatura vieja 13.0
-  echo "  -> Purgando residuos antiguos de la RootFS del molde..."
+  # 1. PURGA DEFINITIVA: Forzamos el borrado físico y recursivo de cualquier binario con sufijo -13.0.so
+  echo "  -> Eliminando de forma recursiva los residuos de PulseAudio 13.0..."
   find "$tmp_dir" -name "*13.0.so" -delete || true
   rm -f "$tmp_dir/usr/lib/libpulsecommon-13.0.so" || true
   rm -f "$tmp_dir/usr/lib/libpulsecore-13.0.so" || true
+  rm -f "$tmp_dir/usr/lib/aarch64-linux-gnu/libpulsecommon-13.0.so" || true
+  rm -f "$tmp_dir/usr/lib/aarch64-linux-gnu/libpulsecore-13.0.so" || true
 
   # 2. INYECTAR TUS LIBRERÍAS MAESTRAS DE LA VERSIÓN 17.0 CON NOMBRE LIMPIO
   echo "  -> Inyectando componentes de PulseAudio 17.0 a /usr/lib/ ..."
@@ -33,7 +35,7 @@ parchear_un_molde() {
   cp -a "$JNILIBS_DIR"/libpulsecore.so "$tmp_dir/usr/lib/"
   cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
 
-  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA
+  # 3. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (El cable maestro para quitar Driver: None)
   echo "  -> Creando archivo maestro de sistema /etc/asound.conf..."
   mkdir -p "$tmp_dir/etc"
   cat << 'EOF' > "$tmp_dir/etc/asound.conf"
@@ -70,8 +72,8 @@ EOF
     chmod 0644 "$tmp_dir/user.reg"
   fi
 
-  # 6. Volver a cerrar el asset preservando la estructura física limpia
-  echo "  -> Recomprimiendo $archivo_molde sin romper enlaces simbólicos..."
+  # 6. Volver a cerrar el asset preservando la estructura física limpia de symlinks de Linux
+  echo "  -> Recomprimiendo $archivo_molde sin alterar enlaces..."
   cd "$tmp_dir"
   find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo_molde"
 
@@ -80,15 +82,15 @@ EOF
   rm -rf "$tmp_dir"
 }
 
-# EJECUTAR PARCHEO EXCLUSIVO EN LOS DOS MOLDES DE CONTENEDORES
+# EJECUTAR PARCHEO MASIVO EN MOLDES Y BUSCAR EL ARCHIVO COMPRIMIDO DE LA IMAGEFS EN LOS ASSETS
 parchear_un_molde "container_pattern_common.tzst"
 parchear_un_molde "proton-9.0-arm64ec_container_pattern.tzst"
 
-# 7. PURGA RADICAL DE LA CACHÉ OCULTA DE GRADLE (Evita que vuelva a inyectar la 13.0 al compilar)
-echo "=== Purgando duplicados históricos en la carpeta intermedia de compilación ==="
-BUILD_INTERMEDIATES="$BASE_DIR/app/build/intermediates"
-if [ -d "$BUILD_INTERMEDIATES" ]; then
-  find "$BUILD_INTERMEDIATES" -name "*13.0.so" -delete || true
-fi
+# Forzar el escaneo y purga en caliente sobre cualquier imagen de RootFS extraída en el directorio assets
+for f in "$ASSETS_DIR"/*.tzst; do
+  if [[ "$f" != *"container_pattern"* ]]; then
+    parchear_un_molde "$(basename "$f")"
+  fi
+done
 
-echo "=== ¡Moldes y carpetas intermedias purgados al 100% con éxito! ==="
+echo "=== ¡Purga de residuos históricos completada al 100% en toda la estructura nativa! ==="
