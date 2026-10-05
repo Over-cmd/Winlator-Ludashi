@@ -54,7 +54,7 @@ jobs:
 
       - name: 7. Reparar Pila de ALSA, asound.conf y Parchear Molde (Fix de Driver: None)
         run: |
-          echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio en el molde ==="
+          echo "=== Iniciando la reconstrucción de la pila ALSA/PulseAudio in el molde ==="
           BASE_DIR="$PWD"
           ASSETS_DIR="$BASE_DIR/app/src/main/assets"
           JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
@@ -77,15 +77,23 @@ jobs:
           cp -a "$JNILIBS_DIR"/libpulsecore.so "$TMP_DIR/usr/lib/"
           cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 
-          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Fix sintáctico con comillas simples externas de protección)
+          # 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Comandos echo individuales ultra-seguros)
           echo "-> Creando archivo de configuración maestro asound.conf..."
           mkdir -p "$TMP_DIR/etc"
-          printf 'pcm.!default {\n    type android_aserver\n    socket "/tmp/pulse-socket"\n}\nctl.!default {\n    type android_aserver\n    socket "/tmp/pulse-socket"\n}\n' > "$TMP_DIR/etc/asound.conf"
+          echo 'pcm.!default {' > "$TMP_DIR/etc/asound.conf"
+          echo '    type android_aserver' >> "$TMP_DIR/etc/asound.conf"
+          echo '    socket "/tmp/pulse-socket"' >> "$TMP_DIR/etc/asound.conf"
+          echo '}' >> "$TMP_DIR/etc/asound.conf"
+          echo 'ctl.!default {' >> "$TMP_DIR/etc/asound.conf"
+          echo '    type android_aserver' >> "$TMP_DIR/etc/asound.conf"
+          echo '    socket "/tmp/pulse-socket"' >> "$TMP_DIR/etc/asound.conf"
+          echo '}' >> "$TMP_DIR/etc/asound.conf"
 
           # 5. CONFIGURAR CLIENT.CONF GLOBAL
           echo "-> Configurando directivas del cliente de audio para PA 17.0..."
           mkdir -p "$TMP_DIR/etc/pulse"
-          printf 'default-server = unix:/tmp/pulse-socket\nenable-shm = no\n' > "$TMP_DIR/etc/pulse/client.conf"
+          echo 'default-server = unix:/tmp/pulse-socket' > "$TMP_DIR/etc/pulse/client.conf"
+          echo 'enable-shm = no' >> "$TMP_DIR/etc/pulse/client.conf"
 
           # 6. Volver a cerrar el molde con máxima compresión ZSTD usando todos los hilos
           echo "-> Cerrando y recomprimiendo container_pattern_common.tzst..."
