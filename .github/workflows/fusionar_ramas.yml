@@ -49,9 +49,9 @@ jobs:
             sed -i 's|pulseaudio-13.0|pulseaudio-17.0|g' "$cmake_file"
           done
 
-      - name: 7. Ejecutar Purgador Maestro y Reparar RootFS (imagefs.tzst) desde Script
+      - name: 7. Ejecutar Purgador Maestro sobre la RootFS Real (imagefs.tar.zst)
         run: |
-          echo "=== Abriendo imagefs.tzst, fulminando PA 13 e inyectando tu versión 17.0 ==="
+          echo "=== Abriendo el archivo real de la foto e inyectando PulseAudio 17.0 ==="
           chmod +x parchear_molde.sh
           ./parchear_molde.sh
 
