@@ -5,7 +5,7 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-# Nombre exacto de tu asset maestro de 184.46 MB
+# Nombre exacto de tu asset maestro de la captura de pantalla
 ARCHIVO_MAESTRO="imagefs.tar.zst"
 TMP_DIR="$BASE_DIR/tmp_imagefs"
 
@@ -14,14 +14,14 @@ if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
   exit 1
 fi
 
-echo "=== INICIANDO PARCHEO EN LA RUTA QUIRÚRGICA: /usr/etc/ ==="
+echo "=== INICIANDO PURGA Y AJUSTE UNIX EN LA ROOTFS ==="
 mkdir -p "$TMP_DIR"
 
 # Desempaquetar la RootFS preservando de forma estricta los enlaces simbólicos y permisos de Linux
 tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
 
 # ============================================================================
-# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS 13.0
+# 1. FULMINACIÓN TOTAL DE LOS Componentes Antiguos 13.0
 # ============================================================================
 echo "-> Triturando de forma física los componentes antiguos de PulseAudio..."
 rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
@@ -49,9 +49,23 @@ cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
 
 # ============================================================================
-# 3. RECONSTRUIR LA INFRAESTRUCTURA DE ENLACE ALSA Y RED POR SOCKET UNIX NATIVO (Android 11 Fix)
+# 3. REPARAR EL ARCHIVO DAEMON.CONF EN LA CARPETA QUE VISTE EN ZARCHIVER
 # ============================================================================
-echo "-> Configurando la pila ALSA y el cliente en modo Socket Unix Nativo..."
+echo "-> Interceptando y dinamizando el archivo daemon.conf..."
+DAEMON_CONF_PATH=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+
+if [ -n "$DAEMON_CONF_PATH" ]; then
+  # Descomentamos la línea de default-script-file para tomar el control total
+  sed -i 's/; default-script-file =/default-script-file =/g' "$DAEMON_CONF_PATH"
+  # Eliminamos la ruta rígida muerta com.winlator.cmod para que el chroot lea de forma local
+  sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$DAEMON_CONF_PATH"
+  echo "  -> ¡Archivo daemon.conf reparado con éxito!"
+fi
+
+# ============================================================================
+# 4. RECONSTRUIR EL ARCHIVO DE ENLACE DE ALSA Y RED EN LA RUTA DE TU FOTO (/usr/etc/)
+# ============================================================================
+echo "-> Sincronizando la pila ALSA al cable de comunicación Unix nativo de Android 11..."
 mkdir -p "$TMP_DIR/usr/etc"
 cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
 pcm.!default {
@@ -70,7 +84,7 @@ default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-# Inyectamos las llaves nativas de sincronización dentro del registro de Windows del contenedor
+# Inyectamos de forma obligatoria las directivas del socket en el registro de Windows de tus contenedores
 if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
   echo "-> Forzando la activación de las llaves Unix de sonido en el registro de Wine..."
   cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
@@ -80,42 +94,6 @@ if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
 
 [Software\\Wine\\PulseAudio]
 "Server"="unix:/tmp/pulse-socket"
-"DisableSHM tram"="1"
-EOF
-fi
-
-# ============================================================================
-# 4. RECONSTRUIR ENLACE DE ALSA Y RED EN LA RUTA OFICIAL DE TU FOTO (/usr/etc/)
-# ============================================================================
-echo "-> Redirigiendo la pila ALSA y el cliente al puerto local loopback TCP..."
-mkdir -p "$TMP_DIR/usr/etc"
-cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
-pcm.!default {
-    type android_aserver
-    socket "127.0.0.1:4713"
-}
-ctl.!default {
-    type android_aserver
-    socket "127.0.0.1:4713"
-}
-EOF
-
-mkdir -p "$TMP_DIR/usr/etc/pulse"
-cat << 'EOF' > "$TMP_DIR/usr/etc/pulse/client.conf"
-default-server = tcp:127.0.0.1:4713
-enable-shm = no
-EOF
-
-# Inyectamos las directivas TCP dentro del registro de Windows del contenedor
-if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
-  echo "-> Forzando la activación de las llaves TCP de sonido en el registro de Wine..."
-  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
-
-[Software\\Wine\\Drivers]
-"Audio"="alsa,pulse"
-
-[Software\\Wine\\PulseAudio]
-"Server"="tcp:127.0.0.1:4713"
 "DisableSHM"="1"
 EOF
 fi
@@ -129,4 +107,4 @@ find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T
 
 cd "$BASE_DIR"
 rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución completa! Los archivos en /usr/etc/ se han actualizado al 100% ==="
+echo "=== ¡Sustitución e inyección Unix completada con éxito absoluto para Android 11! ==="
