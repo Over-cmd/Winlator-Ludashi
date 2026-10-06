@@ -13,7 +13,7 @@ echo "=== INTERCEPTANDO Y REESCRIBIENDO CLASES MAESTRAS DE IMAGEFS JAVA ==="
 # Buscamos de forma recursiva cualquier archivo Java en la carpeta del entorno para parchear los strings rígidos
 find "$BASE_DIR/app/src/main/java/com/winlator/cmod/xenvironment" -type f -name "*.java" | while read -r java_file; do
   if grep -qE "13\.0|pulse-13" "$java_file" 2>/dev/null; then
-    echo "  -> Neutralizando firmas de PulseAudio 13.0 en: $(basename "$java_file")"
+    echo "  -> Neutralizando firmas de PulseAudio 13.0 in: $(basename "$java_file")"
     # Reemplazar de forma estricta las referencias viejas por tus identidades reales de la versión 17.0
     sed -i 's/libpulsecommon-13.0.so/libpulsecommon-17.0.so/g' "$java_file" 2>/dev/null || true
     sed -i 's/libpulsecore-13.0.so/libpulsecore-17.0.so/g' "$java_file" 2>/dev/null || true
@@ -94,19 +94,6 @@ parchear_un_comprimido() {
     find "$tmp_dir" -name "default.pa" -o -name "daemon.conf" -o -name "client.conf" | while read -r config_file; do
       sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$config_file" 2>/dev/null || true
     done
-
-    # Inyección directa de las llaves en el registro local user.reg del molde
-    if [ -f "$tmp_dir/home/xuser/.wine/user.reg" ]; then
-      cat << 'EOF' >> "$tmp_dir/home/xuser/.wine/user.reg"
-
-[Software\\Wine\\Drivers]
-"Audio"="alsa,pulse"
-
-[Software\\Wine\\PulseAudio]
-"Server"="unix:/tmp/pulse-socket"
-"DisableSHM"="1"
-EOF
-    fi
   fi
 
   echo "  -> Recomprimiendo asset purgado: $archivo ..."
