@@ -48,13 +48,22 @@ cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
-# Otorgamos permisos reglamentarios de ejecución de Linux a las 6 librerías
-chmod 0755 "$TMP_DIR/usr/lib"/lib*.so
+# FIX DE COMPILACIÓN: Aplicamos chmod -f (fuerza silenciosa) de forma individual 
+# exclusivamente a tus 6 archivos reales para ignorar los enlaces rotos del sistema
+echo "-> Calibrando permisos de ejecución de Linux en tus 6 librerías reales..."
+cd "$TMP_DIR/usr/lib"
+chmod -f 0755 libpulse.so || true
+chmod -f 0755 libpulsecommon-17.0.so || true
+chmod -f 0755 libpulsecore-17.0.so || true
+chmod -f 0755 libpulseaudio.so || true
+chmod -f 0755 libltdl.so || true
+chmod -f 0755 libsndfile.so || true
+cd "$BASE_DIR"
 
 # ============================================================================
 # 3. RECONSTRUIR LA INFRAESTRUCTURA DE ENLACE DE ALSA Y RED
 # ============================================================================
-echo "-> Creando archivo maestro /etc/asound.conf..."
+echo "-> Creamos archivo maestro /etc/asound.conf..."
 mkdir -p "$TMP_DIR/etc"
 cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
 pcm.!default {
