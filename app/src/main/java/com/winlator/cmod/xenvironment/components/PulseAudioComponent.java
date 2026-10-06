@@ -47,7 +47,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
-        // MANTENER PA 17: Se listan tus 6 librerías legítimas de la versión 17.0 con su nomenclatura real
+        // ENTORNO IMPECABLE PA 17: Se extraen tus 6 librerías nativas reales del repositorio con su firma con guion
         String[] libs = new String[] {
             "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
         };
@@ -77,51 +77,35 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // 1. SINCRONIZACIÓN DE SOCKET: Obligamos a PulseAudio 17.0 a usar la ruta exacta de la RootFS
-        // Esto casa al 100% con el archivo asound.conf y client.conf que viste en tus capturas de ZArchiver.
-        String socketPath = environment.getTmpDir().getAbsolutePath() + "/pulse-socket";
-
+        // CONTROL DEL SOCKET UNIX: Conectamos la directiva exacta que exige el socketConfig original de tu fork
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
-            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketPath+"\"",
+            "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""+socketConfig.path+"\"",
             "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
 
         String archName = AppUtils.getArchName();
-        File modulesDir = new File(workingDir, "pulseaudio/modules");
+        File modulesDir = new File(workingDir, "modules/"+archName);
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
         ArrayList<String> envVars = new ArrayList<>();
-        envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
-        envVars.add("HOME="+workingDir.getAbsolutePath());
+        envVars.add("LD_LIBRARY_PATH="+systemLibPath+":"+modulesDir+":"+workingDir.getAbsolutePath());
+        envVars.add("HOME="+workingDir);
         envVars.add("TMPDIR="+environment.getTmpDir());
         
         copyFromLibraryDir(workingDir);
 
-        // 2. Script puente temporal calibrado para enlazar la directiva de archivos en Android 11
-        File launchScript = new File(workingDir, "launch.sh");
-        FileUtils.writeString(launchScript, String.join("\n",
-            "#!/system/bin/sh",
-            "export LD_LIBRARY_PATH=\"" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath + "\"",
-            "export HOME=\"" + workingDir.getAbsolutePath() + "\"",
-            "export TMPDIR=\"" + environment.getTmpDir() + "\"",
-            "",
-            "# Asegurar que los permisos del archivo de comunicación Unix queden abiertos para Wine",
-            "rm -f \"" + socketPath + "\"",
-            "",
-            "exec " + workingDir.getAbsolutePath() + "/libpulseaudio.so \\",
-            "  --system=false \\",
-            "  --disable-shm=true \\",
-            "  --fail=false \\",
-            "  -n --file=" + workingDir.getAbsolutePath() + "/default.pa \\",
-            "  --daemonize=false \\",
-            "  --use-pid-file=false \\",
-            "  --exit-idle-time=-1"
-        ));
-        FileUtils.chmod(launchScript, 0771);
+        // Mantenemos la sintaxis de ejecución nativa limpia de tu código original estable
+        String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
+        command += " --system=false";
+        command += " --disable-shm=true";
+        command += " --fail=false";
+        command += " -n --file=default.pa";
+        command += " --daemonize=false";
+        command += " --use-pid-file=false";
+        command += " --exit-idle-time=-1";
 
-        String finalCommand = launchScript.getAbsolutePath();
-        return ProcessHelper.exec(finalCommand, envVars.toArray(new String[0]), workingDir);
+        return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
     }
 }
