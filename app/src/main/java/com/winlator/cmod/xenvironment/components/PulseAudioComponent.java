@@ -47,7 +47,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
-        // FULMINAR PA 13: Se listan tus librerías legítimas de la versión 17.0 con su nomenclatura real
+        // DEFENSAS COMPLETA PA 17: Se listan tus 6 librerías legítimas de la versión 17.0 con su nomenclatura real
         String[] libs = new String[] {
             "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
         };
@@ -77,10 +77,11 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // CORREGIDO PARA PA 17: Se remueve auth-cookie-enabled=0 para evitar abortos de red
+        // SINCRONIZACIÓN TCP DEFINITIVA: Se le ordena a tu servidor de PulseAudio abrir el protocolo TCP local 4713
+        // Esto coincide con los archivos de la RootFS que vimos en tu captura de ZArchiver, quitando el bloqueo de carpetas.
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
-            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
+            "load-module module-native-protocol-tcp auth-anonymous=1 listen=127.0.0.1 port=4713",
             "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
@@ -96,7 +97,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
-        // Script puente temporal ultra-limpio para evitar bloqueos del Linker en Android
+        // Script puente temporal acoplado al backend TCP sin restricciones de Kernel
         File launchScript = new File(workingDir, "launch.sh");
         FileUtils.writeString(launchScript, String.join("\n",
             "#!/system/bin/sh",
