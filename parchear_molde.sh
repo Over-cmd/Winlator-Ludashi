@@ -5,69 +5,87 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-# Nombre exacto de tu asset maestro de la captura de pantalla
-ARCHIVO_MAESTRO="imagefs.tar.zst"
-TMP_DIR="$BASE_DIR/tmp_imagefs"
+parchear_un_asset() {
+  local archivo="$1"
+  local tmp_dir="$BASE_DIR/tmp_${archivo//./_}"
+  
+  if [ ! -f "$ASSETS_DIR/$archivo" ]; then
+    echo "Aviso: No se encontró el asset $archivo, saltando..."
+    return 0
+  fi
 
-if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
-  echo "Error Crítico: No se localizó el archivo $ARCHIVO_MAESTRO en la carpeta de assets."
-  exit 1
-fi
+  echo "=== PROCESANDO ASSET CRÍTICO: $archivo ==="
+  mkdir -p "$tmp_dir"
+  
+  # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
+  tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
 
-echo "=== INICIANDO PURGA Y AJUSTE UNIX EN LA ROOTFS ==="
-mkdir -p "$TMP_DIR"
+  # ============================================================================
+  # CASO 1: TU ARCHIVO DE AUDIO MAESTRO (PULSEAUDIO.TZST)
+  # Aquí rellenamos de forma física la ruta privada que Java exige en el teléfono
+  # ============================================================================
+  if [ "$archivo" == "pulseaudio.tzst" ]; then
+    echo "  -> Limpiando estructura vieja y corrupta de pulseaudio.tzst..."
+    rm -rf "$tmp_dir/etc" "$tmp_dir/usr" "$tmp_dir/modules" || true
+    rm -f "$tmp_dir"/*.so || true
+    
+    # CREAMOS LA RUTA EXACTA QUE BUSCA TU LÍNEA DE JAVA: modules/arm64
+    echo "  -> Creando el directorio rígido de Java: modules/arm64 ..."
+    mkdir -p "$tmp_dir/modules/arm64"
 
-# Desempaquetar la RootFS preservando de forma estricta los enlaces simbólicos y permisos de Linux
-tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
+    # Copiamos tus 6 librerías clientes base a la raíz del asset
+    cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/"
+    cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$tmp_dir/"
+    cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$tmp_dir/"
+    cp -a "$JNILIBS_DIR"/libpulseaudio.so "$tmp_dir/"
+    cp -a "$JNILIBS_DIR"/libltdl.so "$tmp_dir/"
+    cp -a "$JNILIBS_DIR"/libsndfile.so "$tmp_dir/"
 
-# ============================================================================
-# 1. FULMINACIÓN TOTAL DE LOS Componentes Antiguos 13.0
-# ============================================================================
-echo "-> Triturando de forma física los componentes antiguos de PulseAudio..."
-rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
-rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
+    # INYECCIÓN MASIVA DE MÓDULOS: Copiamos todos tus módulos .so de jniLibs dentro de modules/arm64
+    echo "  -> Volcando tus 53 módulos reales de la versión 17.0 en la ruta de Java..."
+    cp -a "$JNILIBS_DIR"/*.so "$tmp_dir/modules/arm64/" 2>/dev/null || true
+    
+    # Limpiamos los binarios core duplicados de la subcarpeta para dejar solo los módulos puros
+    rm -f "$tmp_dir/modules/arm64/libpulse"* "$tmp_dir/modules/arm64/libltdl.so" "$tmp_dir/modules/arm64/libsndfile.so" || true
 
-find "$TMP_DIR" -name "libpulsecommon-13.0.so" -delete || true
-find "$TMP_DIR" -name "libpulsecore-13.0.so" -delete || true
-find "$TMP_DIR" -name "libpulse.so" -delete || true
-find "$TMP_DIR" -name "libpulseaudio.so" -delete || true
-find "$TMP_DIR" -name "libltdl.so" -delete || true
-find "$TMP_DIR" -name "libsndfile.so" -delete || true
+    # Pasamos patchelf masivo para corregir las firmas ELF internas de todos tus archivos inyectados
+    echo "  -> Corrigiendo identidades dinámicas con patchelf..."
+    find "$tmp_dir" -name "*.so" | while read -r mod_file; do
+      patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon-17.0.so "$mod_file" 2>/dev/null || true
+      patchelf --replace-needed libpulsecore-17.0.so libpulsecore-17.0.so "$mod_file" 2>/dev/null || true
+      patchelf --set-soname "$(basename "$mod_file")" "$mod_file" 2>/dev/null || true
+    done
 
-# ============================================================================
-# 2. INYECTAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 DESDE TU CARPETA JNILIBS
-# ============================================================================
-echo "-> Sembrando tus 6 binarios reales 17.0 en /usr/lib/ ..."
-mkdir -p "$TMP_DIR/usr/lib"
-cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
+  # ============================================================================
+  # CASO 2: LA ROOTFS COMPLETA DEL SISTEMA OPERATIVO (IMAGEFS.TAR.ZST)
+  # ============================================================================
+  elif [ "$archivo" == "imagefs.tar.zst" ]; then
+    echo "  -> Triturando componentes viejos 13.0 de la RootFS base..."
+    rm -rf "$tmp_dir/usr/lib/pulse-13.0" || true
+    rm -rf "$tmp_dir/usr/local/lib/pulse-13.0" || true
+    find "$tmp_dir" -name "*13.0.so" -delete || true
 
-chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
+    echo "  -> Sembrando tus 6 binarios reales 17.0 en la carpeta global /usr/lib/ ..."
+    mkdir -p "$tmp_dir/usr/lib"
+    cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
+    cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$tmp_dir/usr/lib/"
+    cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$tmp_dir/usr/lib/"
+    cp -a "$JNILIBS_DIR"/libpulseaudio.so "$tmp_dir/usr/lib/"
+    cp -a "$JNILIBS_DIR"/libltdl.so "$tmp_dir/usr/lib/"
+    cp -a "$JNILIBS_DIR"/libsndfile.so "$tmp_dir/usr/lib/"
+    chmod -f 0755 "$tmp_dir/usr/lib"/lib*.so || true
 
-# ============================================================================
-# 3. REPARAR EL ARCHIVO DAEMON.CONF EN LA CARPETA QUE VISTE EN ZARCHIVER
-# ============================================================================
-echo "-> Interceptando y dinamizando el archivo daemon.conf..."
-DAEMON_CONF_PATH=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+    # Corregir el archivo daemon.conf en la ruta real que viste en ZArchiver
+    local daemon_conf_path=$(find "$tmp_dir" -name "daemon.conf" -print -quit)
+    if [ -n "$daemon_conf_path" ]; then
+      sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
+      sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$daemon_conf_path"
+    fi
 
-if [ -n "$DAEMON_CONF_PATH" ]; then
-  # Descomentamos la línea de default-script-file para tomar el control total
-  sed -i 's/; default-script-file =/default-script-file =/g' "$DAEMON_CONF_PATH"
-  # Eliminamos la ruta rígida muerta com.winlator.cmod para que el chroot lea de forma local
-  sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$DAEMON_CONF_PATH"
-  echo "  -> ¡Archivo daemon.conf reparado con éxito!"
-fi
-
-# ============================================================================
-# 4. RECONSTRUIR EL ARCHIVO DE ENLACE DE ALSA Y RED EN LA RUTA DE TU FOTO (/usr/etc/)
-# ============================================================================
-echo "-> Sincronizando la pila ALSA al cable de comunicación Unix nativo de Android 11..."
-mkdir -p "$TMP_DIR/usr/etc"
-cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
+    # Configurar de forma nativa el archivo maestro de ALSA al cable Unix de Android 11
+    echo "  -> Conectando el cable maestro /usr/etc/asound.conf..."
+    mkdir -p "$tmp_dir/usr/etc/pulse"
+    cat << 'EOF' > "$tmp_dir/usr/etc/asound.conf"
 pcm.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
@@ -77,17 +95,14 @@ ctl.!default {
     socket "/tmp/pulse-socket"
 }
 EOF
-
-mkdir -p "$TMP_DIR/usr/etc/pulse"
-cat << 'EOF' > "$TMP_DIR/usr/etc/pulse/client.conf"
+    cat << 'EOF' > "$tmp_dir/usr/etc/pulse/client.conf"
 default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-# Inyectamos de forma obligatoria las directivas del socket en el registro de Windows de tus contenedores
-if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
-  echo "-> Forzando la activación de las llaves Unix de sonido en el registro de Wine..."
-  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
+    # Forzar las directivas en el registro de Windows del chroot
+    if [ -f "$tmp_dir/home/xuser/.wine/user.reg" ]; then
+      cat << 'EOF' >> "$tmp_dir/home/xuser/.wine/user.reg"
 
 [Software\\Wine\\Drivers]
 "Audio"="alsa,pulse"
@@ -96,15 +111,19 @@ if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
 "Server"="unix:/tmp/pulse-socket"
 "DisableSHM"="1"
 EOF
-fi
+    fi
+  fi
 
-# ============================================================================
-# 5. RECOMPRESIÓN SEGURA SIN ALTERAR SYMLINKS
-# ============================================================================
-echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
-cd "$TMP_DIR"
-find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$ARCHIVO_MAESTRO"
+  # Volver a sellar el asset comprimido de forma segura manteniendo los enlaces simbólicos de Linux
+  echo "  -> Recomprimiendo $archivo de forma limpia..."
+  cd "$tmp_dir"
+  find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$archivo"
+  cd "$BASE_DIR"
+  rm -rf "$tmp_dir"
+}
 
-cd "$BASE_DIR"
-rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución e inyección Unix completada con éxito absoluto para Android 11! ==="
+# EJECUTAR EL PARCHEO MAESTRO SIMULTÁNEO EN AUDIO Y ROOTFS
+parchear_un_asset "imagefs.tar.zst"
+parchear_un_asset "pulseaudio.tzst"
+
+echo "=== ¡Sincronización total completada con la carpeta modules/arm64 de Java! ==="
