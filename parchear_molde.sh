@@ -5,7 +5,7 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-# RUTA EXACTA DE TU CAPTURA DE PANTALLA
+# Nombre del archivo maestro de la RootFS que viste en tu captura
 ARCHIVO_MAESTRO="imagefs.tar.zst"
 TMP_DIR="$BASE_DIR/tmp_imagefs"
 
@@ -14,31 +14,47 @@ if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
   exit 1
 fi
 
-echo "=== INICIANDO PURGA QUIRÚRGICA EN LA ROOTFS REAL: $ARCHIVO_MAESTRO ==="
+echo "=== INICIANDO PURGA Y SUSTITUCIÓN TOTAL (6 DE 6) EN LA ROOTFS ==="
 mkdir -p "$TMP_DIR"
 
-# 1. Desempaquetar la RootFS de tu foto preservando de forma estricta los enlaces simbólicos y permisos de Linux
+# Desempaquetar la RootFS preservando de forma estricta los enlaces simbólicos y permisos de Linux
 tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
 
-# 2. FULMINAR VERSIÓN 13.0: Borramos de forma física y radical los archivos viejos que te bloqueaban el audio
-echo "  -> Triturando binarios obsoletos de la versión 13.0..."
-find "$TMP_DIR" -name "*13.0.so" -delete || true
-rm -f "$TMP_DIR/usr/lib/libpulsecommon-13.0.so" || true
-rm -f "$TMP_DIR/usr/lib/libpulsecore-13.0.so" || true
-rm -f "$TMP_DIR/usr/lib/aarch64-linux-gnu/libpulsecommon-13.0.so" || true
-rm -f "$TMP_DIR/usr/lib/aarch64-linux-gnu/libpulsecore-13.0.so" || true
+# ============================================================================
+# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS (Borrado físico absoluto)
+# ============================================================================
+echo "-> Triturando de forma física los 6 componentes antiguos de PulseAudio..."
 rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
 rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
 
-# 3. INYECTAR TU VERSIÓN ELÁSTICA DE PULSEAUDIO 17.0
-echo "  -> Sediando tus componentes legítimos 17.0 en las carpetas globales del sistema..."
+find "$TMP_DIR" -name "libpulsecommon-13.0.so" -delete || true
+find "$TMP_DIR" -name "libpulsecore-13.0.so" -delete || true
+find "$TMP_DIR" -name "libpulse.so" -delete || true
+find "$TMP_DIR" -name "libpulseaudio.so" -delete || true
+find "$TMP_DIR" -name "libltdl.so" -delete || true
+find "$TMP_DIR" -name "libsndfile.so" -delete || true
+
+# ============================================================================
+# 2. INYECTAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 DESDE TU CARPETA JNILIBS
+# ============================================================================
+echo "-> Sembrando tus 6 binarios reales 17.0 en el directorio global /usr/lib/ ..."
 mkdir -p "$TMP_DIR/usr/lib"
+
+# Copiamos de forma física los 6 archivos exactos de tu carpeta arm64-v8a
 cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
+cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
+cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
-# 4. RECONSTRUIR EL ARCHIVO ASOUND.CONF DE ALSA (Para forzar a Wine a salir de None)
-echo "  -> Conectando el cable maestro /etc/asound.conf..."
+# Otorgamos permisos reglamentarios de ejecución de Linux a las 6 librerías
+chmod 0755 "$TMP_DIR/usr/lib"/lib*.so
+
+# ============================================================================
+# 3. RECONSTRUIR LA INFRAESTRUCTURA DE ENLACE DE ALSA Y RED
+# ============================================================================
+echo "-> Creando archivo maestro /etc/asound.conf..."
 mkdir -p "$TMP_DIR/etc"
 cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
 pcm.!default {
@@ -51,19 +67,19 @@ ctl.!default {
 }
 EOF
 
-# 5. CONFIGURAR CLIENT.CONF DEL ENTORNO GLOBAL
 mkdir -p "$TMP_DIR/etc/pulse"
 cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
 default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-# 6. Volver a cerrar la RootFS con máxima compresión ZSTD preservando la estructura nativa intacta
-echo "  -> Recomprimiendo $ARCHIVO_MAESTRO en formato doble tar.zst legítimo..."
+# ============================================================================
+# 4. RECOMPRESIÓN SEGURA SIN ALTERAR SYMLINKS
+# ============================================================================
+echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
 cd "$TMP_DIR"
 find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$ARCHIVO_MAESTRO"
 
-# Limpieza de temporales del runner
 cd "$BASE_DIR"
 rm -rf "$TMP_DIR"
-echo "=== ¡Fase DevOps completada! imagefs.tar.zst ha sido purgado y blindado con éxito ==="
+echo "=== ¡Sustitución simétrica completa! Los 6 archivos son ahora de tu versión 17.0 ==="
