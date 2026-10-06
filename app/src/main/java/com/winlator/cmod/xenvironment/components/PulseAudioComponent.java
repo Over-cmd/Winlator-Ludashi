@@ -89,19 +89,20 @@ public class PulseAudioComponent extends EnvironmentComponent {
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
         ArrayList<String> envVars = new ArrayList<>();
-        // CONTROL DE ESTABILIDAD: Mantenemos el orden nativo del enlazador dinámico original para evitar conflictos circulares
-        envVars.add("LD_LIBRARY_PATH="+systemLibPath+":"+modulesDir+":"+workingDir.getAbsolutePath());
+        // PRIORIDAD DE ENLAZADOR: Anteponemos el directorio de trabajo para amarrar la carga de tus 6 binarios 17.0
+        envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
         envVars.add("HOME="+workingDir);
         envVars.add("TMPDIR="+environment.getTmpDir());
         
         copyFromLibraryDir(workingDir);
 
-        // Invocación nativa original estable de tu fork sin scripts intermediarios extraños que provoquen el Shutdown
+        // SINCRONIZACIÓN DE ARRANQUE: Le indicamos al binario de PulseAudio 17.0 que arranque leyendo 
+        // de forma fija el script default.pa local de la carpeta privada interna para que no busque rutas muertas.
         String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
         command += " --fail=false";
-        command += " -n --file=default.pa";
+        command += " -n --file=" + workingDir.getAbsolutePath() + "/default.pa";
         command += " --daemonize=false";
         command += " --use-pid-file=false";
         command += " --exit-idle-time=-1";
