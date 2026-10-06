@@ -51,7 +51,15 @@ public class NotificationService extends Service {
 		 	.setOngoing(true);
 		 
 		Notification notification = builder.build();
-		startForeground(MainActivity.NOTIFICATION_ID, notification);
+
+		// PARCHE MAESTRO DE AUDIO: Combina el flag especial de fábrica con el permiso multimedia de Android moderno
+		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+			startForeground(MainActivity.NOTIFICATION_ID, notification,
+				ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE |
+				ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+		} else {
+			startForeground(MainActivity.NOTIFICATION_ID, notification);
+		}
         
         isRunning = true;
         
