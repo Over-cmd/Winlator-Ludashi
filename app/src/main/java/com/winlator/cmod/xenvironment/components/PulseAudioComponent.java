@@ -47,7 +47,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
     }
     
     private void copyFromLibraryDir(File dst) {
-        // ENTORNO IMPECABLE PA 17: Se extraen tus 6 librerías nativas reales del repositorio con su firma con guion
+        // ENTORNO BLINDADO PA 17: Se extraen tus 6 librerías nativas reales del repositorio con su nomenclatura con guion legítima
         String[] libs = new String[] {
             "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-17.0.so", "libpulsecore-17.0.so", "libsndfile.so"
         };
@@ -77,6 +77,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
+        // CONTROL DEL SOCKET UNIX NATIVO: Conectamos la directiva exacta de comunicación local Unix que exige tu fork
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""+socketConfig.path+"\"",
@@ -89,16 +90,14 @@ public class PulseAudioComponent extends EnvironmentComponent {
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
         ArrayList<String> envVars = new ArrayList<>();
-        
-        // CORRECCIÓN HISTÓRICA DE PRIORIDAD: Se antepone workingDir.getAbsolutePath() al inicio de la cadena.
-        // Esto obliga a Android 11 a leer obligatoriamente TUS 6 archivos de la versión 17.0 primero,
-        // impidiendo que el sistema operativo los ignore o los pise con las librerías viejas del terminal.
+        // Inversión de prioridad de librerías para forzar a Android 11 a leer primero tus archivos 17.0
         envVars.add("LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath);
         envVars.add("HOME=" + workingDir.getAbsolutePath());
         envVars.add("TMPDIR=" + environment.getTmpDir().getAbsolutePath());
         
         copyFromLibraryDir(workingDir);
 
+        // Sintaxis de ejecución nativa original estable de tu fork
         String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
