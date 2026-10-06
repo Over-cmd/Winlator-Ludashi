@@ -14,19 +14,20 @@ parchear_un_asset() {
     return 0
   fi
 
+  # VALIDACIÓN MAESTRA: Solo procesamos si es un archivo comprimido real (.tzst, .zst, .tar.zst)
+  if [[ "$archivo" != *.tzst && "$archivo" != *.zst && "$archivo" != *.tar.zst ]]; then
+    return 0
+  fi
+
   echo "=== ANIQUILANDO PULSEAUDIO 13 e INYECTANDO VERSIÓN 17 EN: $archivo ==="
   mkdir -p "$tmp_dir"
   
   # Desempaquetar preservando de forma estricta enlaces simbólicos y permisos de Linux
-  if [[ "$archivo" == *.tzst || "$archivo" == *.zst ]]; then
-    tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
-  else
-    tar -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
-  fi
+  tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
 
-  # --------------------------------==========================================
-  # ACCIÓN 1: TRITURACIÓN DE LOS 6 RESIDUOS DE LA VERSIÓN 13.0 (En cualquier subcarpeta)
-  # --------------------------------==========================================
+  # --------------------------------------------------------------------------
+  # ACCIÓN 1: TRITURACIÓN DE LOS 6 RESIDUOS DE LA VERSIÓN 13.0
+  # --------------------------------------------------------------------------
   rm -rf "$tmp_dir/usr/lib/pulse-13.0" || true
   rm -rf "$tmp_dir/usr/local/lib/pulse-13.0" || true
   rm -rf "$tmp_dir/usr/etc/pulse" || true
@@ -41,9 +42,9 @@ parchear_un_asset() {
   find "$tmp_dir" -name "libsndfile.so" -delete || true
   find "$tmp_dir" -name "libsndfile.so.1" -delete || true
 
-  # --------------------------------==========================================
+  # --------------------------------------------------------------------------
   # ACCIÓN 2: SE EMBUTE TU VERSIÓN 17.0 SI EL ASSET CONTIENE CARPETAS DE SISTEMA
-  # ------------------------------------------------==========================
+  # --------------------------------------------------------------------------
   if [ -d "$tmp_dir/usr/lib" ]; then
     echo "  -> Sembrando tus 6 librerías limpias 17.0 en la ruta global de este molde..."
     cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
@@ -62,7 +63,6 @@ parchear_un_asset() {
 
     chmod -f 0755 "$tmp_dir/usr/lib"/libpulse*.so || true
     chmod -f 0755 "$tmp_dir/usr/lib"/libltdl*.so || true
-    chmod -f 0755 "$tmp_dir/usr/lib"/lib++*.so || true
     chmod -f 0755 "$tmp_dir/usr/lib"/libsndfile*.so || true
 
     # Cablear la infraestructura de ALSA nativa para tu tablet con Android 11
@@ -83,10 +83,10 @@ enable-shm = no
 EOF
 
     # Romper el candado de rutas muertas en daemon.conf si existiera en este molde
-    local d_conf=$(find "$tmp_dir" -name "daemon.conf" -print -quit)
-    if [ -n "$d_conf" ]; then
-      sed -i 's/; default-script-file =/default-script-file =/g' "$d_conf"
-      sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$d_conf"
+    daemon_conf_path=$(find "$tmp_dir" -name "daemon.conf" -print -quit)
+    if [ -n "$daemon_conf_path" ]; then
+      sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
+      sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$daemon_conf_path"
     fi
 
     # Registrar el puente multimedia directo en el user.reg local del molde
@@ -158,12 +158,11 @@ if [ -f "$ASSETS_DIR/pulseaudio.tzst" ] && [ -f "$ASSETS_DIR/imagefs.tar.zst" ];
 fi
 
 # ============================================================================
-# 3. ESCANEO GLOBAL ABSOLUTO EN BUCLE EN LA CARPETA DE ASSETS
+# 3. ESCANEO GLOBAL ABSOLUTO EN BUCLE EN LA CARPETA DE ASSETS (CON FILTRADO)
 # ============================================================================
 echo "=== INICIANDO BARRIDO GENERAL EN LA CARPETA DE ASSETS ==="
 for f in "$ASSETS_DIR"/*; do
   if [ -f "$f" ]; then
-    # Pasa por la guillotina a la RootFS base y a todas las plantillas de los contenedores
     parchear_un_asset "$(basename "$f")"
   fi
 done
