@@ -14,25 +14,26 @@ if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
   exit 1
 fi
 
-echo "=== INICIANDO AJUSTE DE ENLACES SIN BORRAR TUS LIBRERÍAS ==="
+echo "=== CORRIGIENDO ENTORNO MULTIMEDIA: PARCHEO ESTABLE DE MÓDULOS ==="
 mkdir -p "$TMP_DIR"
 
 # Desempaquetar la RootFS base preservando de forma estricta los enlaces simbólicos y permisos de Linux
 tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
 
 # ============================================================================
-# 1. PURGA EXCLUSIVA DE LA VERSIÓN VIEJA 13.0
+# 1. FULMINACIÓN EXCLUSIVA DE COMPONENTES ANTIGUOS 13.0
 # ============================================================================
-echo "-> Eliminando residuos antiguos de la versión 13.0..."
+echo "-> Triturando de forma física los componentes antiguos de PulseAudio..."
 rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
 rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
+
 find "$TMP_DIR" -name "libpulsecommon-13.0.so" -delete || true
 find "$TMP_DIR" -name "libpulsecore-13.0.so" -delete || true
 
 # ============================================================================
-# 2. INYECTAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 DESDE TU CARPETA JNILIBS
+# 2. SE QUEDAN TUS 6 LIBRERÍAS EXACTAMENTE DONDE YA FUNCIONABAN PERFECTO
 # ============================================================================
-echo "-> Sembrando tus 6 binarios reales 17.0 en /usr/lib/ ..."
+echo "-> Asegurando tus 6 binarios reales 17.0 en /usr/lib/ ..."
 mkdir -p "$TMP_DIR/usr/lib"
 cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
@@ -41,37 +42,33 @@ cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
-# ============================================================================
-# 3. EL GRAN ENGAÑO DE COMPATIBILIDAD (Enlaces simbólicos de Linux)
-# Forzamos los cables del sistema para que busquen lo que busquen apunte a TUS archivos
-# ============================================================================
-echo "-> Generando puentes virtuales de compatibilidad en /usr/lib/ ..."
+# Enlaces simbólicos de compatibilidad requeridos en la raíz de librerías
 cd "$TMP_DIR/usr/lib"
-# Enlaces del cliente de PulseAudio
-ln -sf libpulse.so libpulse.so.0
-ln -sf libpulsecommon-17.0.so libpulsecommon-13.0.so
-ln -sf libpulsecore-17.0.so libpulsecore-13.0.so
-
-# Enlaces críticos del sistema para evitar que el contenedor haga Shutdown de golpe
-ln -sf libltdl.so libltdl.so.7
-ln -sf libltdl.so libltdl.so.7.3.1
-ln -sf libsndfile.so libsndfile.so.1
-ln -sf libsndfile.so libsndfile.so.1.0.28
+ln -sf libpulse.so libpulse.so.0 || true
+ln -sf libpulsecommon-17.0.so libpulsecommon-13.0.so || true
+ln -sf libpulsecore-17.0.so libpulsecore-13.0.so || true
 cd "$BASE_DIR"
 
 # ============================================================================
-# 4. INYECTAR LOS 53 MÓDULOS EN LA ROOTFS GLOBAL
+# 3. EL FIX DE COMPATIBILIDAD: INYECTAR LOS MÓDULOS PURGANDO LOS EXECUTABLES
+# Sembramos tus complementos elásticos eliminando los cores para evitar el loop de Shutdown
 # ============================================================================
-echo "-> Creando el directorio de módulos e inyectando los 53 complementos .so..."
+echo "-> Estructurando subcarpeta de plugins elásticos nativos..."
 mkdir -p "$TMP_DIR/usr/lib/pulseaudio/modules"
 cp -a "$JNILIBS_DIR"/*.so "$TMP_DIR/usr/lib/pulseaudio/modules/" 2>/dev/null || true
 
-# Limpiamos las librerías base de la carpeta modules para dejar solo los plugins puros
-rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulse"* "$TMP_DIR/usr/lib/pulseaudio/modules/libltdl.so" "$TMP_DIR/usr/lib/pulseaudio/modules/libsndfile.so" || true
+echo "-> Purgando binarios principales de la subcarpeta de módulos para evitar el crash..."
+# Borramos estrictamente los 6 archivos base de la subcarpeta de módulos para que queden solo los 53 plugins puros
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulse.so" || true
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulsecommon-17.0.so" || true
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulsecore-17.0.so" || true
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulseaudio.so" || true
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libltdl.so" || true
+rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libsndfile.so" || true
 
-# Aplicar patchelf masivo a tus archivos inyectados en la RootFS para reparar cabeceras ELF
-echo "-> Corrigiendo identidades dinámicas con patchelf..."
-find "$TMP_DIR" -name "*.so" | while read -r mod_file; do
+# Aplicar patchelf masivo exclusivamente a los módulos inyectados reales
+echo "-> Corrigiendo identidades dinámicas de plugins con patchelf..."
+find "$TMP_DIR/usr/lib/pulseaudio/modules" -name "*.so" | while read -r mod_file; do
   patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon-17.0.so "$mod_file" 2>/dev/null || true
   patchelf --replace-needed libpulsecore-17.0.so libpulsecore-17.0.so "$mod_file" 2>/dev/null || true
   patchelf --set-soname "$(basename "$mod_file")" "$mod_file" 2>/dev/null || true
@@ -81,19 +78,15 @@ chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
 chmod -f 0755 "$TMP_DIR/usr/lib/pulseaudio/modules"/*.so || true
 
 # ============================================================================
-# 5. REPARAR EL ARCHIVO DAEMON.CONF EN LA RUTA DE TU FOTO (/usr/etc/pulse/)
+# 4. REPARAR DAEMON.CONF Y CONFIGURAR TUBERÍA ALSA UNIX NATIVO PARA ANDROID 11
 # ============================================================================
-echo "-> Interceptando y dinamizando el archivo daemon.conf..."
+echo "-> Sincronizando configuraciones de arranque y cables de audio..."
 daemon_conf_path=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
 if [ -n "$daemon_conf_path" ]; then
   sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
   sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$daemon_conf_path"
 fi
 
-# ============================================================================
-# 6. RECONSTRUIR EL ARCHIVO DE ENLACE DE ALSA AL CABLE UNIX NATIVO EN ANDROID 11
-# ============================================================================
-echo "-> Sincronizando la pila ALSA al cable de comunicación Unix nativo..."
 mkdir -p "$TMP_DIR/usr/etc/pulse"
 cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
 pcm.!default {
@@ -111,7 +104,6 @@ default-server = unix:/tmp/pulse-socket
 enable-shm = no
 EOF
 
-# Forzar las llaves Unix en el registro de Windows del contenedor
 if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
   cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
 
@@ -125,7 +117,7 @@ EOF
 fi
 
 # ============================================================================
-# 7. RECOMPRESIÓN SEGURA SIN ALTERAR SYMLINKS
+# 5. RECOMPRESIÓN SEGURA DE LA IMAGEFS
 # ============================================================================
 echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
 cd "$TMP_DIR"
@@ -133,4 +125,4 @@ find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T
 
 cd "$BASE_DIR"
 rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución completa e inyección Unix terminada con éxito! ==="
+echo "=== ¡Sustitución e inyección modular completada con éxito rotundo! ==="
