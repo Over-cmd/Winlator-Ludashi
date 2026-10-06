@@ -49,17 +49,39 @@ cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
 
 # ============================================================================
-# 3. REPARAR EL ARCHIVO DAEMON.CONF EN LA RUTA REAL (/usr/etc/pulse/daemon.conf)
+# 3. RECONSTRUIR LA INFRAESTRUCTURA DE ENLACE ALSA Y RED POR SOCKET UNIX NATIVO (Android 11 Fix)
 # ============================================================================
-echo "-> Interceptando y dinamizando el archivo daemon.conf de tu captura..."
-DAEMON_CONF_PATH=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+echo "-> Configurando la pila ALSA y el cliente en modo Socket Unix Nativo..."
+mkdir -p "$TMP_DIR/usr/etc"
+cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
+pcm.!default {
+    type android_aserver
+    socket "/tmp/pulse-socket"
+}
+ctl.!default {
+    type android_aserver
+    socket "/tmp/pulse-socket"
+}
+EOF
 
-if [ -n "$DAEMON_CONF_PATH" ]; then
-  # Descomentamos la línea de default-script-file para tomar el control total
-  sed -i 's/; default-script-file =/default-script-file =/g' "$DAEMON_CONF_PATH"
-  # Eliminamos la ruta rígida muerta com.winlator.cmod para que el chroot lea de forma local
-  sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$DAEMON_CONF_PATH"
-  echo "  -> ¡Archivo daemon.conf reparado con éxito!"
+mkdir -p "$TMP_DIR/usr/etc/pulse"
+cat << 'EOF' > "$TMP_DIR/usr/etc/pulse/client.conf"
+default-server = unix:/tmp/pulse-socket
+enable-shm = no
+EOF
+
+# Inyectamos las llaves nativas de sincronización dentro del registro de Windows del contenedor
+if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
+  echo "-> Forzando la activación de las llaves Unix de sonido en el registro de Wine..."
+  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
+
+[Software\\Wine\\Drivers]
+"Audio"="alsa,pulse"
+
+[Software\\Wine\\PulseAudio]
+"Server"="unix:/tmp/pulse-socket"
+"DisableSHM tram"="1"
+EOF
 fi
 
 # ============================================================================
