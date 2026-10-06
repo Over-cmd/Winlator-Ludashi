@@ -5,89 +5,117 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-# Nombre exacto de tu asset maestro de 184.46 MB de tu foto
+# Nombres exactos de tus assets en el repositorio
 ARCHIVO_MAESTRO="imagefs.tar.zst"
-TMP_DIR="$BASE_DIR/tmp_imagefs"
+ARCHIVO_PULSE="pulseaudio.tzst"
 
-if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
-  echo "Error Crítico: No se localizó el archivo $ARCHIVO_MAESTRO en la carpeta de assets."
+TMP_IMAGEFS="$BASE_DIR/tmp_imagefs"
+TMP_PULSE="$BASE_DIR/tmp_pulseaudio"
+
+if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ] || [ ! -f "$ASSETS_DIR/$ARCHIVO_PULSE" ]; then
+  echo "Error Crítico: No se localizó imagefs.tar.zst o pulseaudio.tzst en assets."
   exit 1
 fi
 
-echo "=== INICIANDO PURGA Y SUSTITUCIÓN SIMÉTRICA (6 DE 6) EN LA ROOTFS ==="
-mkdir -p "$TMP_DIR"
+echo "=== INICIANDO EXTRACCIÓN Y TRASVASE NATIVO DE MÓDULOS 17.0 ==="
+mkdir -p "$TMP_IMAGEFS"
+mkdir -p "$TMP_PULSE"
 
-# Desempaquetar la RootFS base preservando de forma estricta los enlaces simbólicos y permisos de Linux
-tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
+# 1. Desempaquetar la RootFS base de internet
+echo "-> Desempaquetando la RootFS base (imagefs.tar.zst)..."
+tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_IMAGEFS"
 
-# ============================================================================
-# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS DE LA VERSIÓN 13.0
-# ============================================================================
-echo "-> Triturando de forma física los 6 componentes antiguos de PulseAudio..."
-rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
-rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
-rm -rf "$TMP_DIR/usr/etc/pulse" || true
-
-# Borramos de forma estricta los 6 archivos por su nombre plano en todo el árbol de directorios
-find "$TMP_DIR" -name "libpulsecommon-13.0.so" -delete || true
-find "$TMP_DIR" -name "libpulsecore-13.0.so" -delete || true
-find "$TMP_DIR" -name "libpulse.so" -delete || true
-find "$TMP_DIR" -name "libpulse.so.0" -delete || true
-find "$TMP_DIR" -name "libpulseaudio.so" -delete || true
-find "$TMP_DIR" -name "libltdl.so" -delete || true
-find "$TMP_DIR" -name "libltdl.so.7" -delete || true
-find "$TMP_DIR" -name "libsndfile.so" -delete || true
-find "$TMP_DIR" -name "libsndfile.so.1" -delete || true
+# 2. Desempaquetar TU archivo pulseaudio.tzst personal para sacar tus 53 módulos reales
+echo "-> Abriendo tu pulseaudio.tzst de assets para extraer tus módulos elásticos..."
+tar -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_PULSE" -C "$TMP_PULSE"
 
 # ============================================================================
-# 2. COLOCAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 EXACTAMENTE EN SU LUGAR (arm64-v8a)
-# Seteamos tus binarios reales en la carpeta global /usr/lib/ para el chroot
+# 3. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS DE LA VERSIÓN 13.0
 # ============================================================================
-echo "-> Sembrando tus 6 binarios reales de PulseAudio 17.0 en /usr/lib/ ..."
-mkdir -p "$TMP_DIR/usr/lib"
+echo "-> Eliminando físicamente los 6 componentes antiguos de PulseAudio 13.0..."
+rm -rf "$TMP_IMAGEFS/usr/lib/pulse-13.0" || true
+rm -rf "$TMP_IMAGEFS/usr/local/lib/pulse-13.0" || true
+rm -rf "$TMP_IMAGEFS/usr/etc/pulse" || true
 
-# Copiamos de forma física tus 6 archivos exactos desde tu carpeta arm64-v8a del repositorio
-cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
-cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
+find "$TMP_IMAGEFS" -name "libpulsecommon-13.0.so" -delete || true
+find "$TMP_IMAGEFS" -name "libpulsecore-13.0.so" -delete || true
+find "$TMP_IMAGEFS" -name "libpulse.so" -delete || true
+find "$TMP_IMAGEFS" -name "libpulse.so.0" -delete || true
+find "$TMP_IMAGEFS" -name "libpulseaudio.so" -delete || true
+find "$TMP_IMAGEFS" -name "libltdl.so" -delete || true
+find "$TMP_IMAGEFS" -name "libltdl.so.7" -delete || true
+find "$TMP_IMAGEFS" -name "libsndfile.so" -delete || true
+find "$TMP_IMAGEFS" -name "libsndfile.so.1" -delete || true
 
-# Enlaces simbólicos de compatibilidad requeridos por el enlazador de Wine en la raíz global
-cd "$TMP_DIR/usr/lib"
+# ============================================================================
+# 4. INYECTAR TUS 6 LIBRERÍAS DE JNILIBS EN LA RAÍZ GLOBAL (/usr/lib/)
+# ============================================================================
+echo "-> Sembrando tus 6 binarios reales de PulseAudio 17.0 de jniLibs en la RootFS..."
+cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_IMAGEFS/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_IMAGEFS/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_IMAGEFS/usr/lib/"
+cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_IMAGEFS/usr/lib/"
+cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_IMAGEFS/usr/lib/"
+cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_IMAGEFS/usr/lib/"
+
+# Enlaces simbólicos reglamentarios requeridos en /usr/lib/ para Wine
+cd "$TMP_IMAGEFS/usr/lib"
 ln -sf libpulse.so libpulse.so.0 || true
 ln -sf libpulsecommon-17.0.so libpulsecommon-13.0.so || true
 ln -sf libpulsecore-17.0.so libpulsecore-13.0.so || true
 cd "$BASE_DIR"
 
-# Ajustamos permisos individuales de ejecución en Linux para tus 6 librerías reales (evita errores con symlinks)
-echo "-> Calibrando permisos de ejecución en tus binarios..."
-cd "$TMP_DIR/usr/lib"
-chmod -f 0755 libpulse.so || true
-chmod -f 0755 libpulsecommon-17.0.so || true
-chmod -f 0755 libpulsecore-17.0.so || true
-chmod -f 0755 libpulseaudio.so || true
-chmod -f 0755 libltdl.so || true
-chmod -f 0755 libsndfile.so || true
-cd "$BASE_DIR"
+# Ajustar permisos estrictamente en la raíz de librerías globales
+chmod -f 0755 "$TMP_IMAGEFS/usr/lib"/libpulse*.so || true
+chmod -f 0755 "$TMP_IMAGEFS/usr/lib"/libltdl*.so || true
+chmod -f 0755 "$TMP_IMAGEFS/usr/lib"/libsndfile*.so || true
 
 # ============================================================================
-# 3. REPARAR EL ARCHIVO DAEMON.CONF EN LA CARPETA QUE VISTE EN ZARCHIVER
+# 5. TRASLADAR TUS 53 MÓDULOS DESDE TU COMPRIMIDO A LA CARPETA DE LA ROOTFS
+# ============================================================================
+echo "-> Copiando tus módulos extraídos de pulseaudio.tzst hacia usr/lib/pulseaudio/modules/ ..."
+mkdir -p "$TMP_IMAGEFS/usr/lib/pulseaudio/modules"
+
+# Rastrear la subcarpeta de módulos dentro de tu pulseaudio.tzst extraído (modules/arm64, etc.)
+RUTA_MODULOS_ORIGEN=$(find "$TMP_PULSE" -name "module-*.so" -print -quit)
+if [ -n "$RUTA_MODULOS_ORIGEN" ]; then
+  DIR_ORIGEN=$(dirname "$RUTA_MODULOS_ORIGEN")
+  echo "  -> Detectada tu carpeta real de módulos en: $DIR_ORIGEN"
+  cp -a "$DIR_ORIGEN"/*.so "$TMP_IMAGEFS/usr/lib/pulseaudio/modules/" 2>/dev/null || true
+else
+  # Si están sueltos en la raíz de tu asset comprimido, los jala directamente
+  cp -a "$TMP_PULSE"/*.so "$TMP_IMAGEFS/usr/lib/pulseaudio/modules/" 2>/dev/null || true
+fi
+
+# Nos aseguramos de limpiar cualquier ejecutable core duplicado de la subcarpeta modules
+rm -f "$TMP_IMAGEFS/usr/lib/pulseaudio/modules/libpulse"* || true
+rm -f "$TMP_IMAGEFS/usr/lib/pulseaudio/modules/libltdl.so" || true
+rm -f "$TMP_IMAGEFS/usr/lib/pulseaudio/modules/libsndfile.so" || true
+
+# CORRECCIÓN DE RUTA EN PATCHELF: Sincroniza las identidades ELF estrictamente dentro de la carpeta modules
+echo "-> Sincronizando identidades ELF modulares con patchelf..."
+find "$TMP_IMAGEFS/usr/lib/pulseaudio/modules" -name "*.so" | while read -r mod_file; do
+  patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon-17.0.so "$mod_file" 2>/dev/null || true
+  patchelf --replace-needed libpulsecore-17.0.so libpulsecore-17.0.so "$mod_file" 2>/dev/null || true
+  patchelf --set-soname "$(basename "$mod_file")" "$mod_file" 2>/dev/null || true
+done
+
+# CORRECCIÓN DE RUTA EN CHMOD: Permisos de ejecución de Linux aplicados directamente a tus módulos reales
+chmod -f 0755 "$TMP_IMAGEFS/usr/lib/pulseaudio/modules"/*.so || true
+
+# ============================================================================
+# 6. REPARAR DAEMON.CONF Y ENLAZAR EL CABLE UNIX NATIVO PARA ANDROID 11
 # ============================================================================
 echo "-> Reparando directivas de rutas en el archivo daemon.conf..."
-daemon_conf_path=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+daemon_conf_path=$(find "$TMP_IMAGEFS" -name "daemon.conf" -print -quit)
 if [ -n "$daemon_conf_path" ]; then
   sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
   sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$daemon_conf_path"
 fi
 
-# ============================================================================
-# 4. CONFIGURAR LA INFRAESTRUCTURA DE ENLACE DE ALSA AL CABLE UNIX NATIVO
-# ============================================================================
-echo "-> Sincronizando la pila ALSA al cable de comunicación Unix nativo..."
-mkdir -p "$TMP_DIR/usr/etc"
-cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
+echo "-> Sincronizando la estructura del cable de audio nativo..."
+mkdir -p "$TMP_IMAGEFS/usr/etc/pulse"
+cat << 'EOF' > "$TMP_IMAGEFS/usr/etc/asound.conf"
 pcm.!default {
     type android_aserver
     socket "/tmp/pulse-socket"
@@ -98,10 +126,13 @@ ctl.!default {
 }
 EOF
 
-# Forzar las llaves estables dentro del registro de Windows del chroot
-if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
-  echo "-> Configurando las llaves del mezclador de audio en user.reg..."
-  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
+cat << 'EOF' > "$TMP_IMAGEFS/usr/etc/pulse/client.conf"
+default-server = unix:/tmp/pulse-socket
+enable-shm = no
+EOF
+
+if [ -f "$TMP_IMAGEFS/home/xuser/.wine/user.reg" ]; then
+  cat << 'EOF' >> "$TMP_IMAGEFS/home/xuser/.wine/user.reg"
 
 [Software\\Wine\\Drivers]
 "Audio"="alsa,pulse"
@@ -113,12 +144,13 @@ EOF
 fi
 
 # ============================================================================
-# 5. RECOMPRESIÓN SEGURA DE LA IMAGEFS EN ZSTD
+# 7. RECOMPRESIÓN SEGURA DE LA IMAGEFS EN ZSTD
 # ============================================================================
 echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
-cd "$TMP_DIR"
+cd "$TMP_IMAGEFS"
 find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$ARCHIVO_MAESTRO"
 
+# Limpieza de las carpetas de trabajo temporales del runner
 cd "$BASE_DIR"
-rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución simétrica completa en /usr/lib/ finalizada con éxito absoluto! ==="
+rm -rf "$TMP_IMAGEFS" "$TMP_PULSE"
+echo "=== ¡Sustitución y trasvase de módulos desde pulseaudio.tzst completado al 100%! ==="
