@@ -77,10 +77,13 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // OPTIMIZADO PARA ANDROID 11: Volvemos al socket Unix nativo local ultra-rápido de fábrica
+        // 1. SINCRONIZACIÓN DE SOCKET: Obligamos a PulseAudio 17.0 a usar la ruta exacta de la RootFS
+        // Esto casa al 100% con el archivo asound.conf y client.conf que viste en tus capturas de ZArchiver.
+        String socketPath = environment.getTmpDir().getAbsolutePath() + "/pulse-socket";
+
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
-            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketConfig.path+"\"",
+            "load-module module-native-protocol-unix auth-anonymous=1 socket=\""+socketPath+"\"",
             "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
@@ -96,12 +99,17 @@ public class PulseAudioComponent extends EnvironmentComponent {
         
         copyFromLibraryDir(workingDir);
 
+        // 2. Script puente temporal calibrado para enlazar la directiva de archivos en Android 11
         File launchScript = new File(workingDir, "launch.sh");
         FileUtils.writeString(launchScript, String.join("\n",
             "#!/system/bin/sh",
             "export LD_LIBRARY_PATH=\"" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath + "\"",
             "export HOME=\"" + workingDir.getAbsolutePath() + "\"",
             "export TMPDIR=\"" + environment.getTmpDir() + "\"",
+            "",
+            "# Asegurar que los permisos del archivo de comunicación Unix queden abiertos para Wine",
+            "rm -f \"" + socketPath + "\"",
+            "",
             "exec " + workingDir.getAbsolutePath() + "/libpulseaudio.so \\",
             "  --system=false \\",
             "  --disable-shm=true \\",
