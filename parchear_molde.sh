@@ -6,26 +6,35 @@ ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
 # ============================================================================
-# 1. HACK QUIRÚRGICO DE CÓDIGO JAVA (Desarmar ImageFs.java e ImageFsInstaller.java)
+# 1. EL HACK ANTIDESCARGAS: INTERCEPTAR EL INSTALADOR JAVA (ImageFsInstaller.java)
 # ============================================================================
-echo "=== INTERCEPTANDO Y REESCRIBIENDO CLASES MAESTRAS DE IMAGEFS JAVA ==="
+echo "===INYECTANDO FILTRO ANTIDESCARGAS EN EL INSTALADOR JAVA ==="
+INSTALLER_FILE="app/src/main/java/com/winlator/cmod/xenvironment/ImageFsInstaller.java"
 
-# Buscamos de forma recursiva cualquier archivo Java en la carpeta del entorno para parchear los strings rígidos
-find "$BASE_DIR/app/src/main/java/com/winlator/cmod/xenvironment" -type f -name "*.java" | while read -r java_file; do
-  if grep -qE "13\.0|pulse-13" "$java_file" 2>/dev/null; then
-    echo "  -> Neutralizando firmas de PulseAudio 13.0 in: $(basename "$java_file")"
-    # Reemplazar de forma estricta las referencias viejas por tus identidades reales de la versión 17.0
-    sed -i 's/libpulsecommon-13.0.so/libpulsecommon-17.0.so/g' "$java_file" 2>/dev/null || true
-    sed -i 's/libpulsecore-13.0.so/libpulsecore-17.0.so/g' "$java_file" 2>/dev/null || true
-    sed -i 's/pulse-13.0/pulseaudio/g' "$java_file" 2>/dev/null || true
-    sed -i 's/pulse-13/pulseaudio/g' "$java_file" 2>/dev/null || true
-  fi
+if [ -f "$INSTALLER_FILE" ]; then
+  echo "  -> ¡Modificando ImageFsInstaller.java para bloquear la versión 13 de internet!"
+  
+  # Reemplazar de forma estricta los strings viejos por tu versión 17 en el código de Java
+  sed -i 's/libpulsecommon-13.0.so/libpulsecommon-17.0.so/g' "$INSTALLER_FILE" 2>/dev/null || true
+  sed -i 's/libpulsecore-13.0.so/libpulsecore-17.0.so/g' "$INSTALLER_FILE" 2>/dev/null || true
+  sed -i 's/pulse-13.0/pulseaudio/g' "$INSTALLER_FILE" 2>/dev/null || true
+  sed -i 's/pulse-13/pulseaudio/g' "$INSTALLER_FILE" 2>/dev/null || true
+  
+  echo "  -> ¡ImageFsInstaller.java blindado con éxito contra descargas externas!"
+else
+  # Búsqueda elástica en todo el subdirectorio de Java por si acaso
+  find . -name "ImageFsInstaller.java" -exec sed -i 's/libpulsecommon-13.0.so/libpulsecommon-17.0.so/g' {} + || true
+  find . -name "ImageFsInstaller.java" -exec sed -i 's/libpulsecore-13.0.so/libpulsecore-17.0.so/g' {} + || true
+fi
+
+# Hacer un escaneo preventivo en el archivo ImageFs.java por si retiene rutas rígidas de extracción
+find "$BASE_DIR/app/src/main/java/com/winlator/cmod/xenvironment" -type f -name "ImageFs.java" | while read -r java_file; do
+  sed -i 's/libpulsecommon-13.0.so/libpulsecommon-17.0.so/g' "$java_file" 2>/dev/null || true
+  sed -i 's/libpulsecore-13.0.so/libpulsecore-17.0.so/g' "$java_file" 2>/dev/null || true
 done
 
-echo "  -> ¡Clases de inicialización Java parcheadas con éxito!"
-
 # ============================================================================
-# 2. FUNCIÓN INTERNA DE PURGA SUSTITUTIVA DE COMPRIMIDOS EN ASSETS
+# 2. FUNCIÓN INTERNA DE PURGA EN LOS COMPRIMIDOS LOCALES DE ASSETS
 # ============================================================================
 parchear_un_comprimido() {
   local archivo="$1"
@@ -35,19 +44,18 @@ parchear_un_comprimido() {
     return 0
   fi
 
-  # VALIDACIÓN DE FORMATO: Solo abrimos paquetes comprimidos reales (.tzst, .zst, .tar.zst)
-  # Omitimos estrictamente tu 'pulseaudio.tzst' personal para respetar tus 53 módulos reales
+  # VALIDACIÓN: Solo abrimos paquetes comprimidos reales (.tzst, .zst, .tar.zst)
+  # Omitimos estrictamente tu 'pulseaudio.tzst' personal para respetar tus 53 módulos subidos
   if [[ "$archivo" != *.tzst && "$archivo" != *.zst && "$archivo" != *.tar.zst ]] || [ "$archivo" == "pulseaudio.tzst" ]; then
     return 0
   fi
 
-  echo "=== ENTRANDO Y LIMPIANDO ASSET DE CONTENEDOR: $archivo ==="
+  echo "=== LIMPIANDO ASSET LOCAL: $archivo ==="
   mkdir -p "$tmp_dir"
   
-  # Desempaquetar preservando de forma estricta los enlaces simbólicos y permisos de Linux
   tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$archivo" -C "$tmp_dir"
 
-  # Trituración física absoluta de directorios y binarios antiguos de la versión 13.0
+  # Trituración física absoluta de directorios antiguos 13.0 en las plantillas de fábrica
   rm -rf "$tmp_dir/usr/lib/pulse-13.0" || true
   rm -rf "$tmp_dir/usr/local/lib/pulse-13.0" || true
   rm -rf "$tmp_dir/usr/etc/pulse" || true
@@ -63,9 +71,9 @@ parchear_un_comprimido() {
   find "$tmp_dir" -name "libsndfile.so" -delete || true
   find "$tmp_dir" -name "libsndfile.so.1" -delete || true
 
-  # Inyección de tus 6 librerías reales 17.0 en los moldes que contengan el sistema de archivos global
+  # Inyección limpia de tus 6 librerías reales 17.0 en los moldes con sistema de archivos
   if [ -d "$tmp_dir/usr/lib" ]; then
-    echo "  -> Sembrando tus 6 librerías limpias de la versión 17.0..."
+    echo "  -> Sediando tus 6 librerías de la versión 17.0..."
     cp -a "$JNILIBS_DIR"/libpulse.so "$tmp_dir/usr/lib/"
     cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$tmp_dir/usr/lib/"
     cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$tmp_dir/usr/lib/"
@@ -73,14 +81,12 @@ parchear_un_comprimido() {
     cp -a "$JNILIBS_DIR"/libltdl.so "$tmp_dir/usr/lib/"
     cp -a "$JNILIBS_DIR"/libsndfile.so "$tmp_dir/usr/lib/"
 
-    # Enlaces simbólicos requeridos para forzar a Wine a apuntar a la versión 17.0
     cd "$tmp_dir/usr/lib"
     ln -sf libpulse.so libpulse.so.0 || true
     ln -sf libpulsecommon-17.0.so libpulsecommon-13.0.so || true
     ln -sf libpulsecore-17.0.so libpulsecore-13.0.so || true
     cd "$BASE_DIR"
 
-    # Permisos individuales para evitar conflictos con symlinks rotos de gráficos
     cd "$tmp_dir/usr/lib"
     chmod -f 0755 libpulse.so || true
     chmod -f 0755 libpulsecommon-17.0.so || true
@@ -104,7 +110,7 @@ parchear_un_comprimido() {
 }
 
 # ============================================================================
-# 3. BUCLE DE BARRIDO TOTAL SOBRE LA CARPETA DE ASSETS
+# 3. BUCLE DE BARRIDO TOTAL SOBRE LA CARPETA DE ASSETS LOCALES
 # ============================================================================
 echo "=== INICIANDO BARRIDO GENERAL EN LA CARPETA DE ASSETS ==="
 for f in "$ASSETS_DIR"/*; do
