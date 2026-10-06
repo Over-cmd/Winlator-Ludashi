@@ -70,7 +70,18 @@ chmod -f 0755 libsndfile.so || true
 cd "$BASE_DIR"
 
 # ============================================================================
-# 3. RECOMPRESIÓN SEGURA DE TU IMAGEFS EN FORMATO TAR.ZST MAESTRO
+# 3. INTERCEPCIÓN EN CALIENTE DE LAS RUTAS MUERTAS EN TODOS LOS ARCHIVOS .CONF Y .PA
+# ============================================================================
+echo "-> Corrigiendo en caliente las rutas en default.pa, daemon.conf y el nuevo client.conf..."
+# El asterisco hace que barra cualquier extensión dentro de las carpetas pulse duplicadas de tus fotos
+find "$TMP_DIR" -name "default.pa" -o -name "daemon.conf" -o -name "client.conf" | while read -r config_file; do
+  echo "  -> Purgando prefijo muerto com.winlator.cmod en: $config_file"
+  # Remueve el rastro com.winlator.cmod de la faz del documento de forma segura sin alterar las líneas comentadas
+  sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$config_file" 2>/dev/null || true
+done
+
+# ============================================================================
+# 4. RECOMPRESIÓN SEGURA DE TU IMAGEFS EN FORMATO TAR_ZST MAESTRO
 # ============================================================================
 echo "-> Cerrando y sellando $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
 cd "$TMP_DIR"
