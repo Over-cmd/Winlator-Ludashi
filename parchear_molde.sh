@@ -14,26 +14,31 @@ if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
   exit 1
 fi
 
-echo "=== CORRIGIENDO ENTORNO MULTIMEDIA: PARCHEO ESTABLE DE MÓDULOS ==="
+echo "=== INICIANDO PURGA ABSOLUTA DE LOS 6 ARCHIVOS DE PULSEAUDIO 13.0 ==="
 mkdir -p "$TMP_DIR"
 
 # Desempaquetar la RootFS base preservando de forma estricta los enlaces simbólicos y permisos de Linux
 tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
 
 # ============================================================================
-# 1. FULMINACIÓN EXCLUSIVA DE COMPONENTES ANTIGUOS 13.0
+# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS DE LA VERSIÓN 13.0
 # ============================================================================
-echo "-> Triturando de forma física los componentes antiguos de PulseAudio..."
+echo "-> Eliminando físicamente los 6 componentes antiguos de PulseAudio 13.0..."
 rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
 rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
 
+# Buscamos y destruimos explícitamente los 6 nombres de la versión antigua en todo el disco virtual
 find "$TMP_DIR" -name "libpulsecommon-13.0.so" -delete || true
 find "$TMP_DIR" -name "libpulsecore-13.0.so" -delete || true
+find "$TMP_DIR" -name "libpulse.so" -delete || true
+find "$TMP_DIR" -name "libpulseaudio.so" -delete || true
+find "$TMP_DIR" -name "libltdl.so" -delete || true
+find "$TMP_DIR" -name "libsndfile.so" -delete || true
 
 # ============================================================================
-# 2. SE QUEDAN TUS 6 LIBRERÍAS EXACTAMENTE DONDE YA FUNCIONABAN PERFECTO
+# 2. INYECTAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 DESDE TU CARPETA JNILIBS
 # ============================================================================
-echo "-> Asegurando tus 6 binarios reales 17.0 en /usr/lib/ ..."
+echo "-> Sembrando tus 6 binarios reales de PulseAudio 17.0 en /usr/lib/ ..."
 mkdir -p "$TMP_DIR/usr/lib"
 cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
@@ -42,7 +47,7 @@ cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
-# Enlaces simbólicos de compatibilidad requeridos en la raíz de librerías
+# Enlaces simbólicos de compatibilidad requeridos en la raíz de librerías para Wine
 cd "$TMP_DIR/usr/lib"
 ln -sf libpulse.so libpulse.so.0 || true
 ln -sf libpulsecommon-17.0.so libpulsecommon-13.0.so || true
@@ -50,15 +55,14 @@ ln -sf libpulsecore-17.0.so libpulsecore-13.0.so || true
 cd "$BASE_DIR"
 
 # ============================================================================
-# 3. EL FIX DE COMPATIBILIDAD: INYECTAR LOS MÓDULOS PURGANDO LOS EXECUTABLES
-# Sembramos tus complementos elásticos eliminando los cores para evitar el loop de Shutdown
+# 3. INYECTAR LOS 53 MÓDULOS ELÁSTICOS NATIVOS PURGANDO NÚCLEOS
 # ============================================================================
-echo "-> Estructurando subcarpeta de plugins elásticos nativos..."
+echo "-> Estructurando subcarpeta de plugins e inyectando componentes..."
 mkdir -p "$TMP_DIR/usr/lib/pulseaudio/modules"
 cp -a "$JNILIBS_DIR"/*.so "$TMP_DIR/usr/lib/pulseaudio/modules/" 2>/dev/null || true
 
-echo "-> Purgando binarios principales de la subcarpeta de módulos para evitar el crash..."
-# Borramos estrictamente los 6 archivos base de la subcarpeta de módulos para que queden solo los 53 plugins puros
+echo "-> Purgando ejecutables duplicados de la carpeta de módulos para evitar bucles..."
+# Eliminamos estrictamente las 6 librerías core del subdirectorio de módulos para dejar solo los plugins puros
 rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulse.so" || true
 rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulsecommon-17.0.so" || true
 rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libpulsecore-17.0.so" || true
@@ -67,7 +71,7 @@ rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libltdl.so" || true
 rm -f "$TMP_DIR/usr/lib/pulseaudio/modules/libsndfile.so" || true
 
 # Aplicar patchelf masivo exclusivamente a los módulos inyectados reales
-echo "-> Corrigiendo identidades dinámicas de plugins con patchelf..."
+echo "-> Corrigiendo las identidades dinámicas de plugins con patchelf..."
 find "$TMP_DIR/usr/lib/pulseaudio/modules" -name "*.so" | while read -r mod_file; do
   patchelf --replace-needed libpulsecommon-17.0.so libpulsecommon-17.0.so "$mod_file" 2>/dev/null || true
   patchelf --replace-needed libpulsecore-17.0.so libpulsecore-17.0.so "$mod_file" 2>/dev/null || true
@@ -78,9 +82,9 @@ chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
 chmod -f 0755 "$TMP_DIR/usr/lib/pulseaudio/modules"/*.so || true
 
 # ============================================================================
-# 4. REPARAR DAEMON.CONF Y CONFIGURAR TUBERÍA ALSA UNIX NATIVO PARA ANDROID 11
+# 4. DINAMIZAR DAEMON.CONF Y CONFIGURAR TUBERÍA ALSA UNIX NATIVO PARA ANDROID 11
 # ============================================================================
-echo "-> Sincronizando configuraciones de arranque y cables de audio..."
+echo "-> Reparando directivas en el archivo daemon.conf..."
 daemon_conf_path=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
 if [ -n "$daemon_conf_path" ]; then
   sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
@@ -119,10 +123,10 @@ fi
 # ============================================================================
 # 5. RECOMPRESIÓN SEGURA DE LA IMAGEFS
 # ============================================================================
-echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
+echo "-> Recomprimiendo la RootFS libre de archivos viejos de la versión 13.0..."
 cd "$TMP_DIR"
 find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T0 > "$ASSETS_DIR/$ARCHIVO_MAESTRO"
 
 cd "$BASE_DIR"
 rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución e inyección modular completada con éxito rotundo! ==="
+echo "=== ¡Purga de los 6 archivos viejos e inyección de la versión 17.0 completada al 100%! ==="
