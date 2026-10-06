@@ -47,7 +47,7 @@ cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
 # ============================================================================
-# 3. EL GOLPE DE GRACIA (INYECTAR LOS 53 MÓDULOS EN LA ROOTFS GLOBAL)
+# 3. INYECTAR LOS 53 MÓDULOS EN LA ROOTFS GLOBAL
 # Sembramos tus módulos en el directorio de sistema que lee el binario compilado
 # ============================================================================
 echo "-> Creando el directorio de módulos e inyectando los 53 complementos .so..."
@@ -72,7 +72,8 @@ chmod -f 0755 "$TMP_DIR/usr/lib/pulseaudio/modules"/*.so || true
 # 4. REPARAR EL ARCHIVO DAEMON.CONF EN LA RUTA DE TU FOTO (/usr/etc/pulse/)
 # ============================================================================
 echo "-> Interceptando y dinamizando el archivo daemon.conf..."
-local daemon_conf_path=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+# CORREGIDO: Eliminamos la palabra 'local' para evitar el error de sintaxis global de Bash
+daemon_conf_path=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
 if [ -n "$daemon_conf_path" ]; then
   sed -i 's/; default-script-file =/default-script-file =/g' "$daemon_conf_path"
   sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$daemon_conf_path"
