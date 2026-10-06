@@ -77,7 +77,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
             FileUtils.chmod(workingDir, 0771);
         }
 
-        // CONTROL DEL SOCKET UNIX: Conectamos la directiva exacta que exige el socketConfig original de tu fork
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""+socketConfig.path+"\"",
@@ -90,13 +89,16 @@ public class PulseAudioComponent extends EnvironmentComponent {
         String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
         ArrayList<String> envVars = new ArrayList<>();
-        envVars.add("LD_LIBRARY_PATH="+systemLibPath+":"+modulesDir+":"+workingDir.getAbsolutePath());
-        envVars.add("HOME="+workingDir);
-        envVars.add("TMPDIR="+environment.getTmpDir());
+        
+        // CORRECCIÓN HISTÓRICA DE PRIORIDAD: Se antepone workingDir.getAbsolutePath() al inicio de la cadena.
+        // Esto obliga a Android 11 a leer obligatoriamente TUS 6 archivos de la versión 17.0 primero,
+        // impidiendo que el sistema operativo los ignore o los pise con las librerías viejas del terminal.
+        envVars.add("LD_LIBRARY_PATH=" + workingDir.getAbsolutePath() + ":" + modulesDir + ":" + systemLibPath);
+        envVars.add("HOME=" + workingDir.getAbsolutePath());
+        envVars.add("TMPDIR=" + environment.getTmpDir().getAbsolutePath());
         
         copyFromLibraryDir(workingDir);
 
-        // Mantenemos la sintaxis de ejecución nativa limpia de tu código original estable
         String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
