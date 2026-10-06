@@ -5,7 +5,7 @@ BASE_DIR="$PWD"
 ASSETS_DIR="$BASE_DIR/app/src/main/assets"
 JNILIBS_DIR="$BASE_DIR/app/src/main/jniLibs/arm64-v8a"
 
-# Nombre del archivo maestro de la RootFS que viste en tu captura
+# Nombre exacto de tu asset maestro de 184.46 MB
 ARCHIVO_MAESTRO="imagefs.tar.zst"
 TMP_DIR="$BASE_DIR/tmp_imagefs"
 
@@ -14,16 +14,16 @@ if [ ! -f "$ASSETS_DIR/$ARCHIVO_MAESTRO" ]; then
   exit 1
 fi
 
-echo "=== INICIANDO PURGA Y SUSTITUCIÓN TOTAL (6 DE 6) EN LA ROOTFS ==="
+echo "=== INICIANDO PARCHEO EN LA RUTA QUIRÚRGICA: /usr/etc/ ==="
 mkdir -p "$TMP_DIR"
 
 # Desempaquetar la RootFS preservando de forma estricta los enlaces simbólicos y permisos de Linux
 tar --pax-option=exthdr.name=%d/PakHeaders/%f -I 'zstd -d' -xf "$ASSETS_DIR/$ARCHIVO_MAESTRO" -C "$TMP_DIR"
 
 # ============================================================================
-# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS (Borrado físico absoluto)
+# 1. FULMINACIÓN TOTAL DE LOS 6 RASTROS VIEJOS 13.0
 # ============================================================================
-echo "-> Triturando de forma física los 6 componentes antiguos de PulseAudio..."
+echo "-> Triturando de forma física los componentes antiguos de PulseAudio..."
 rm -rf "$TMP_DIR/usr/lib/pulse-13.0" || true
 rm -rf "$TMP_DIR/usr/local/lib/pulse-13.0" || true
 
@@ -37,10 +37,8 @@ find "$TMP_DIR" -name "libsndfile.so" -delete || true
 # ============================================================================
 # 2. INYECTAR TUS 6 LIBRERÍAS DE LA VERSIÓN 17.0 DESDE TU CARPETA JNILIBS
 # ============================================================================
-echo "-> Sembrando tus 6 binarios reales 17.0 en el directorio global /usr/lib/ ..."
+echo "-> Sembrando tus 6 binarios reales 17.0 en /usr/lib/ ..."
 mkdir -p "$TMP_DIR/usr/lib"
-
-# Copiamos de forma física los 6 archivos exactos de tu carpeta arm64-v8a
 cp -a "$JNILIBS_DIR"/libpulse.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecommon-17.0.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libpulsecore-17.0.so "$TMP_DIR/usr/lib/"
@@ -48,42 +46,60 @@ cp -a "$JNILIBS_DIR"/libpulseaudio.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libltdl.so "$TMP_DIR/usr/lib/"
 cp -a "$JNILIBS_DIR"/libsndfile.so "$TMP_DIR/usr/lib/"
 
-# FIX DE COMPILACIÓN: Aplicamos chmod -f (fuerza silenciosa) de forma individual 
-# exclusivamente a tus 6 archivos reales para ignorar los enlaces rotos del sistema
-echo "-> Calibrando permisos de ejecución de Linux en tus 6 librerías reales..."
-cd "$TMP_DIR/usr/lib"
-chmod -f 0755 libpulse.so || true
-chmod -f 0755 libpulsecommon-17.0.so || true
-chmod -f 0755 libpulsecore-17.0.so || true
-chmod -f 0755 libpulseaudio.so || true
-chmod -f 0755 libltdl.so || true
-chmod -f 0755 libsndfile.so || true
-cd "$BASE_DIR"
+chmod -f 0755 "$TMP_DIR/usr/lib"/lib*.so || true
 
 # ============================================================================
-# 3. RECONSTRUIR LA INFRAESTRUCTURA DE ENLACE DE ALSA Y RED
+# 3. REPARAR EL ARCHIVO DAEMON.CONF EN LA RUTA REAL (/usr/etc/pulse/daemon.conf)
 # ============================================================================
-echo "-> Creamos archivo maestro /etc/asound.conf..."
-mkdir -p "$TMP_DIR/etc"
-cat << 'EOF' > "$TMP_DIR/etc/asound.conf"
+echo "-> Interceptando y dinamizando el archivo daemon.conf de tu captura..."
+DAEMON_CONF_PATH=$(find "$TMP_DIR" -name "daemon.conf" -print -quit)
+
+if [ -n "$DAEMON_CONF_PATH" ]; then
+  # Descomentamos la línea de default-script-file para tomar el control total
+  sed -i 's/; default-script-file =/default-script-file =/g' "$DAEMON_CONF_PATH"
+  # Eliminamos la ruta rígida muerta com.winlator.cmod para que el chroot lea de forma local
+  sed -i 's|/data/data/com.winlator.cmod/files/imagefs||g' "$DAEMON_CONF_PATH"
+  echo "  -> ¡Archivo daemon.conf reparado con éxito!"
+fi
+
+# ============================================================================
+# 4. RECONSTRUIR ENLACE DE ALSA Y RED EN LA RUTA OFICIAL DE TU FOTO (/usr/etc/)
+# ============================================================================
+echo "-> Redirigiendo la pila ALSA y el cliente al puerto local loopback TCP..."
+mkdir -p "$TMP_DIR/usr/etc"
+cat << 'EOF' > "$TMP_DIR/usr/etc/asound.conf"
 pcm.!default {
     type android_aserver
-    socket "/tmp/pulse-socket"
+    socket "127.0.0.1:4713"
 }
 ctl.!default {
     type android_aserver
-    socket "/tmp/pulse-socket"
+    socket "127.0.0.1:4713"
 }
 EOF
 
-mkdir -p "$TMP_DIR/etc/pulse"
-cat << 'EOF' > "$TMP_DIR/etc/pulse/client.conf"
-default-server = unix:/tmp/pulse-socket
+mkdir -p "$TMP_DIR/usr/etc/pulse"
+cat << 'EOF' > "$TMP_DIR/usr/etc/pulse/client.conf"
+default-server = tcp:127.0.0.1:4713
 enable-shm = no
 EOF
 
+# Inyectamos las directivas TCP dentro del registro de Windows del contenedor
+if [ -f "$TMP_DIR/home/xuser/.wine/user.reg" ]; then
+  echo "-> Forzando la activación de las llaves TCP de sonido en el registro de Wine..."
+  cat << 'EOF' >> "$TMP_DIR/home/xuser/.wine/user.reg"
+
+[Software\\Wine\\Drivers]
+"Audio"="alsa,pulse"
+
+[Software\\Wine\\PulseAudio]
+"Server"="tcp:127.0.0.1:4713"
+"DisableSHM"="1"
+EOF
+fi
+
 # ============================================================================
-# 4. RECOMPRESIÓN SEGURA SIN ALTERAR SYMLINKS
+# 5. RECOMPRESIÓN SEGURA SIN ALTERAR SYMLINKS
 # ============================================================================
 echo "-> Volviendo a cerrar $ARCHIVO_MAESTRO con máxima compresión ZSTD..."
 cd "$TMP_DIR"
@@ -91,4 +107,4 @@ find . -mindepth 1 -print0 | tar --null --no-recursion -cvf - -T - | zstd -19 -T
 
 cd "$BASE_DIR"
 rm -rf "$TMP_DIR"
-echo "=== ¡Sustitución simétrica completa! Los 6 archivos son ahora de tu versión 17.0 ==="
+echo "=== ¡Sustitución completa! Los archivos en /usr/etc/ se han actualizado al 100% ==="
