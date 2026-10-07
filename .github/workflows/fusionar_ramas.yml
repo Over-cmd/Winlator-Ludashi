@@ -1,74 +1,78 @@
-name: 🚀 Compilador Winlator Ludashi 3.1 Original con Parche PulseAudio 17.0
+name: 🚀 Compilador Winlator Ludashi 3.1 con PulseAudio 17
 
 on:
-  workflow_dispatch: # Activa el botón manual "Run workflow" en la pestaña Actions
+  workflow_dispatch:
 
 jobs:
   build-ludashi-31:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 1. Descargar Código Fuente de la Rama ludashi-3.1
+      - name: 1. Código fuente
         uses: actions/checkout@v4
         with:
           ref: 'ludashi-3.1'
           submodules: 'recursive'
 
-      - name: 2. Configurar Entorno de Java (JDK 17)
+      - name: 2. JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
           cache: 'gradle'
 
-      - name: 3. Aceptar Licencias de Android SDK Nativo
+      - name: 3. Licencias Android SDK
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
 
-      - name: 4. Instalar Herramientas de Compilación del Sistema
+      - name: 4. Herramientas del sistema
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build patchelf glslang-tools zstd curl
 
-      - name: 5. Otorgar Permisos de Ejecución a Gradle
+      - name: 5. Permisos Gradle
         run: chmod +x gradlew
 
-      - name: 6. Forzar a Gradle a descargar la RootFS Real de Fábrica
-        run: |
-          echo "=== Descargando la RootFS real desde el servidor oficial de Gradle ==="
-          ./gradlew downloadImageFS --no-daemon
+      - name: 6. Descargar RootFS y Proton
+        run: ./gradlew :app:downloadImageFS :app:downloadProton --no-daemon
 
-      - name: 6.5. Hackear CMakeLists.txt (Bloquear inyecciones de PulseAudio 13 residuales)
+      - name: 7. Diagnóstico PulseAudio 17
         run: |
-          echo "=== Interceptando configuraciones rígidas de CMake ==="
-          find . -name "CMakeLists.txt" | while read -r cmake_file; do
-            echo "  -> Revisando y parchando: $cmake_file"
-            sed -i 's/13.0/17.0/g' "$cmake_file"
-            sed -i 's/pulse-13.0/pulseaudio/g' "$cmake_file"
-            sed -i 's|pulseaudio-13.0|pulseaudio-17.0|g' "$cmake_file"
+          echo "=== Assets ==="
+          ls -la app/src/main/assets | grep -i -E "pulse|imagefs" || true
+          test -f app/src/main/assets/pulseaudio.tzst
+
+          echo "=== Libs jniLibs ==="
+          cd app/src/main/jniLibs/arm64-v8a
+          ls -la | grep -i -E "pulse|ltdl|sndfile" || true
+          for f in libpulse*.so libltdl.so libsndfile.so; do
+            echo "== $f"
+            readelf -d "$f" | grep -E "SONAME|NEEDED" || true
           done
+          if ls | grep -i 'pulse.*13'; then echo "Quedan libs 13 en jniLibs"; exit 1; fi
+          cd "$GITHUB_WORKSPACE"
 
-      - name: 7. Forzar Descargas Previas de Gradle (Engañar al sistema)
+          echo "=== Módulos del tzst ==="
+          rm -rf /tmp/pa && mkdir /tmp/pa
+          zstd -dc app/src/main/assets/pulseaudio.tzst | tar -xf - -C /tmp/pa
+          echo "Módulos: $(find /tmp/pa -name 'module-*.so' | wc -l)"
+          find /tmp/pa -name '*.so' -exec readelf -d {} + | grep NEEDED | sort | uniq -c || true
+          if find /tmp/pa -name '*.so' -exec readelf -d {} + | grep NEEDED | grep -E 'pulse.*13'; then
+            echo "Hay módulos con dependencia 13.0"; exit 1
+          fi
+
+      - name: 8. Compilar APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: 9. Verificar APK
         run: |
-          echo "=== Forzando a Gradle a descargar la RootFS y Proton de internet ==="
-          # Ejecutamos únicamente las tareas de descarga para que Gradle llene la carpeta de assets
-          ./gradlew :app:downloadImageFS :app:downloadProton --no-daemon || true
+          unzip -l app/build/outputs/apk/debug/*.apk | grep -i -E "pulse|ltdl|sndfile"
+          if unzip -l app/build/outputs/apk/debug/*.apk | grep -i -E 'pulse.*13'; then
+            echo "El APK contiene libs de la 13"; exit 1
+          fi
 
-      - name: 8. Ejecutar Purgador Maestro (Triturar PulseAudio 13 descargado)
-        run: |
-          echo "=== Pasando el rodillo destructor sobre los archivos recién descargados ==="
-          chmod +x parchear_molde.sh
-          ./parchear_molde.sh
-
-      - name: 8.5. Compilación y Ensamblado Final del APK en Limpio
-        run: |
-          echo "=== Ensamblando el APK definitivo sin permitir más descargas ==="
-          # Compilamos el APK pasando el flag offline o directo para que use tus parches del asset local
-          ./gradlew assembleDebug --no-daemon
-
-
-      - name: 9. Subir APK Compilado como Artefacto
+      - name: 10. Subir APK
         uses: actions/upload-artifact@v4
         with:
           name: Winlator-Ludashi-3.1-PulseAudio17-APK
