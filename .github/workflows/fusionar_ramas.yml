@@ -37,16 +37,17 @@ jobs:
       - name: 6. Descargar RootFS y Proton
         run: ./gradlew :app:downloadImageFS :app:downloadProton --no-daemon
 
-      - name: 6b. Añadir libs de protocolo al tzst
+      - name: 6b. Mezclar módulos y libs de PulseAudio 17 en el tzst
         run: |
           set -e
+          test -f extra/pulse17/module-aaudio-sink.so
           test -f extra/pulse17/libprotocol-native.so
           rm -rf /tmp/pa_fix && mkdir /tmp/pa_fix
           zstd -dc app/src/main/assets/pulseaudio.tzst | tar -xf - -C /tmp/pa_fix
-          cp extra/pulse17/*.so /tmp/pa_fix/modules/arm64/
+          cp -f extra/pulse17/*.so /tmp/pa_fix/modules/arm64/
           chmod 0755 /tmp/pa_fix/modules/arm64/*.so
+          echo "Archivos en modules/arm64: $(ls /tmp/pa_fix/modules/arm64 | wc -l)"
           (cd /tmp/pa_fix && tar --numeric-owner -cf - . | zstd -19 -T0 > "$GITHUB_WORKSPACE/app/src/main/assets/pulseaudio.tzst")
-          echo "tzst regenerado con las libs de protocolo"
 
       - name: 6c. Qué PulseAudio trae imagefs
         run: |
