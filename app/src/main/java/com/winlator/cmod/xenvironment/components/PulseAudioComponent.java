@@ -90,7 +90,7 @@ public class PulseAudioComponent extends EnvironmentComponent {
 
         ArrayList<String> envVars = new ArrayList<>();
         // PRIORIDAD DE ENLAZADOR: Anteponemos el directorio de trabajo para amarrar la carga de tus 6 binarios 17.0
-        envVars.add("LD_LIBRARY_PATH="+workingDir.getAbsolutePath()+":"+modulesDir+":"+systemLibPath);
+        envVars.add("LD_LIBRARY_PATH="+systemLibPath+":"+modulesDir+":"+workingDir.getAbsolutePath());
         envVars.add("HOME="+workingDir);
         envVars.add("TMPDIR="+environment.getTmpDir());
         
