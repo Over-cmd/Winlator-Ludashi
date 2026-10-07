@@ -57,6 +57,30 @@ jobs:
             echo "== $f"; readelf -h "$f" | grep Machine; readelf -d "$f" | grep -E "NEEDED|SONAME"
           done
 
+      - name: 6d. Parchear imagefs con PulseAudio 17
+        run: |
+          set -euo pipefail
+          A=app/src/main/assets/imagefs.tar.zst
+          J=app/src/main/jniLibs/arm64-v8a
+          rm -rf /tmp/ifs && mkdir /tmp/ifs
+          zstd -dc "$A" | tar -xf - -C /tmp/ifs
+          L=/tmp/ifs/usr/lib
+
+          rm -f "$L"/libpulsecommon-13.0.so "$L"/libpulsecore-13.0.so
+          for f in libpulse.so libpulseaudio.so libpulsecommon-17.0.so libpulsecore-17.0.so; do
+            install -m 0755 "$J/$f" "$L/$f"
+          done
+          for f in libltdl.so libsndfile.so; do
+            [ -e "$L/$f" ] || install -m 0755 "$J/$f" "$L/$f"
+          done
+
+          if find /tmp/ifs -iname '*pulse*13*' | grep -q .; then
+            find /tmp/ifs -iname '*pulse*13*'; echo "Quedan restos de 13"; exit 1
+          fi
+          ls -la "$L" | grep -i -E "pulse|ltdl|sndfile"
+
+          (cd /tmp/ifs && tar --numeric-owner --owner=0 --group=0 -cf - . | zstd -19 -T0 > "$GITHUB_WORKSPACE/$A")
+
       - name: 7. Diagnóstico PulseAudio 17
         run: |
           echo "=== Assets ==="
