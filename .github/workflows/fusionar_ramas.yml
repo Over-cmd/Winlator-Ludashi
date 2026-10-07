@@ -62,6 +62,21 @@ jobs:
             echo "Hay módulos con dependencia 13.0"; exit 1
           fi
 
+      - name: 7b. Dependencias que faltan
+        run: |
+          cd /tmp/pa
+          find . -name '*.so' -exec readelf -d {} + | grep NEEDED | sed 's/.*\[\(.*\)\]/\1/' | sort -u > /tmp/needed.txt
+          for l in $(cat /tmp/needed.txt); do
+            case "$l" in libc.so|libm.so|libdl.so|libaaudio.so) continue;; esac
+            if find /tmp/pa "$GITHUB_WORKSPACE/app/src/main/jniLibs/arm64-v8a" -name "$l" | grep -q .; then
+              echo "OK    $l"
+            else
+              echo "FALTA $l"
+            fi
+          done
+          echo "=== libs dentro del tzst ==="
+          find /tmp/pa -name 'lib*.so'
+
       - name: 8. Compilar APK
         run: ./gradlew assembleDebug --no-daemon
 
