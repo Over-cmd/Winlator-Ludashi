@@ -77,6 +77,14 @@ jobs:
           echo "=== libs dentro del tzst ==="
           find /tmp/pa -name 'lib*.so'
 
+      - name: 7c. Dependencias exactas de los módulos que usas
+        run: |
+          cd /tmp/pa/modules/arm64
+          for m in module-native-protocol-unix.so module-aaudio-sink.so module-cli.so; do
+            echo "== $m"
+            readelf -d "$m" | grep NEEDED
+          done
+
       - name: 8. Compilar APK
         run: ./gradlew assembleDebug --no-daemon
 
