@@ -48,6 +48,15 @@ jobs:
           (cd /tmp/pa_fix && tar --numeric-owner -cf - . | zstd -19 -T0 > "$GITHUB_WORKSPACE/app/src/main/assets/pulseaudio.tzst")
           echo "tzst regenerado con las libs de protocolo"
 
+      - name: 6c. Qué PulseAudio trae imagefs
+        run: |
+          rm -rf /tmp/ifs && mkdir /tmp/ifs
+          zstd -dc app/src/main/assets/imagefs.tar.zst | tar -tf - | grep -i pulse | head -40
+          zstd -dc app/src/main/assets/imagefs.tar.zst | tar -xf - -C /tmp/ifs --wildcards '*libpulse*.so*' || true
+          for f in $(find /tmp/ifs -name 'libpulse*.so*' -type f | head -5); do
+            echo "== $f"; readelf -h "$f" | grep Machine; readelf -d "$f" | grep -E "NEEDED|SONAME"
+          done
+
       - name: 7. Diagnóstico PulseAudio 17
         run: |
           echo "=== Assets ==="
