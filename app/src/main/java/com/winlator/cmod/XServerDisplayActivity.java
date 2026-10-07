@@ -907,6 +907,18 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupWineSystemFiles() {
+        
+        File paDir = new File(getFilesDir(), "pulseaudio");
+        File paMarker = new File(paDir, ".pa17");
+        if (!paMarker.exists()) {
+            FileUtils.delete(paDir);
+            paDir.mkdirs();
+            FileUtils.chmod(paDir, 0771);
+            if (TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "pulseaudio.tzst", paDir)) {
+                FileUtils.writeString(paMarker, "17");
+            }
+        }
+        
         String imgVersion = String.valueOf(imageFs.getVersion());
         boolean containerDataChanged = false;
 
