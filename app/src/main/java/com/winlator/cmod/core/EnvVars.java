@@ -8,9 +8,12 @@ import java.util.LinkedHashMap;
 public class EnvVars implements Iterable<String> {
     private final LinkedHashMap<String, String> data = new LinkedHashMap<>();
 
-    public EnvVars() {}
+ public EnvVars() {
+    // 👇 Inyecta aquí tu variable fija por defecto al crear contenedores nuevos 👇
+    put("PULSE_LATENCY_MSEC", "60");
+}
 
-    public EnvVars(String values) {
+public EnvVars(String values) {
         putAll(values);
     }
 
